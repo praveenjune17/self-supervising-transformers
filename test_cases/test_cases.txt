@@ -1,0 +1,83 @@
+a) 
+Fix to enusure numerical stability in pointer_gen
+
+input_ = [1000.0, 1, 8, 0, -0.01, -1, -1000]
+print(tf.math.log(input_))
+print(tf.math.log(tf.math.maximum(input_, 0.0000000001)))
+##########################################################################################################################################
+b) Input independent baseline check
+
+if config.input_independent_baseline_check:
+  input_seq = [[0]*config.input_seq_length]
+  output_seq = [[0]*(config.target_seq_length+1)]
+  zeroed_train_dataset=tf.data.Dataset.from_tensor_slices((
+                                                           tf.convert_to_tensor(input_seq), 
+                                                           tf.convert_to_tensor(output_seq)
+                                                           )
+                                                          )
+  zeroed_train_dataset = zeroed_train_dataset.repeat(100)
+  for (step, (input_ids, target_ids_)) in tqdm(enumerate(zeroed_train_dataset)):
+    start=time.time()
+    draft_mask, refine_mask, target_ids = mask_and_one_hot_labels(target_ids_)
+    refine_predictions = train_step(
+                                    input_ids,  
+                                    target_ids_, 
+                                    target_ids, 
+                                    draft_mask,
+                                    refine_mask,
+                                    grad_accum_flag
+                                    )
+    batch_run_check(
+                  step+1,  
+                  start
+                  )
+  log.info('Input Independent baseline run completed')
+  sys.exit()
+##########################################################################################################################################
+c) Speed test by enabling and disabling JIT
+
+With JIT :- 
+3102it [18:29,  2.97it/s]INFO:tensorflow:Step 3103 Train_Loss 1.0424 Train_Accuracy 0.5206
+
+Without JIT :-
+3175it [21:40,  2.48it/s]INFO:tensorflow:Step 3176 Train_Loss 1.0424 Train_Accuracy 0.5344
+
+enable jit since it converges fast
+##########################################################################################################################################
+d) Initial loss check
+
+if config.init_loss_check:
+  input_ids, target_ids_ = next(iter(train_dataset))
+  draft_mask, refine_mask, target_ids = mask_and_one_hot_labels(target_ids_)
+  loss =  eval_step(
+                    input_ids,  
+                    target_ids_, 
+                    target_ids, 
+                    draft_mask,
+                    refine_mask
+                    )
+  log.info(f"Model's Initial loss {loss}")
+  # 2:- Draft and Refine decoders
+  log.info(f'Expected initial loss {tf.math.log(tf.cast(config.target_vocab_size, dtype=tf.float32))*2}')
+  log.info(f'Initial Loss check run completed')
+  sys.exit()
+ #########################################################################################################################################
+ e) Random results check
+
+ if config.random_results_check:
+  training_loop(train_dataset.take(2))
+  log.info('First run over. Restart the run time and run the script again')
+  sys.exit()
+
+  ###########################################################################
+  d) with and without bias after 1000 steps
+
+  1000it [09:45,  2.54it/s]INFO:tensorflow:Train_Loss 0.8294 Train_Accuracy 0.2456
+  1000it [10:31,  2.23it/s]INFO:tensorflow:Train_Loss 1.4130 Train_Accuracy 0.2404
+
+  bias info:-
+    # used 'language detect' api to detect the language in the vocab file 
+    # Add bias to the final decoder layer
+    # bias = log(minority_vocab_count/majority_vocab_count)
+      # non-tamil tokens = bias, 
+      # tamil tokens     = 0     
