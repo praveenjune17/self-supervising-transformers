@@ -39,8 +39,8 @@ Optimize the model:-
 Coding
 
 *) stage wise testing
-*) jit not enabled
-*) code cleaning
+*) refine_attention_distribution fix required
+*) clean way to tie all the three functionalities
 *) policy gradient approach (start with)
 			a) immediate reward:- autoregressive score using decoder.. like beam search
 			b) BERT score :- reward to use once the sentence is generated

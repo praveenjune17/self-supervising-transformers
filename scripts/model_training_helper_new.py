@@ -39,7 +39,7 @@ val_step_signature = [
                       tf.TensorSpec(shape=(None), dtype=tf.bool)
                      ]
 
-@tf.function(input_signature=train_step_signature)
+@tf.function(experimental_relax_shapes=True)#(input_signature=train_step_signature, experimental_compile=True)
 def train_step(input_ids, 
                target_ids,
                grad_accum_flag):
@@ -51,18 +51,30 @@ def train_step(input_ids,
                                                         )
     with tf.GradientTape() as tape:
         (draft_predictions, draft_attention_weights, 
-          refine_predictions, refine_attention_weights) = Model(
-                                                         input_ids,
-                                                         dec_padding_mask=dec_padding_mask,
-                                                         target_ids=target_inp,
-                                                         enc_padding_mask=enc_padding_mask, 
-                                                         look_ahead_mask=combined_mask, 
-                                                         training=True,
-                                                         )
+         refine_predictions, refine_attention_weights,
+         draft_greedy_op, draft_sample_return,
+         refine_greedy_op, refined_sample_return,
+         target_embeddings, draft_greedy_op_embeddings,
+         draft_sample_return_embeddings, refine_greedy_op_embeddings,
+         refined_sample_return_embeddings) = Model(
+                                                 input_ids,
+                                                 dec_padding_mask=dec_padding_mask,
+                                                 target_ids=target_inp,
+                                                 enc_padding_mask=enc_padding_mask, 
+                                                 look_ahead_mask=combined_mask, 
+                                                 training=True,
+                                                 )
         train_variables = Model.trainable_variables
         loss, target = loss_function(target_ids, 
                                      draft_predictions,
-                                     refine_predictions, 
+                                     refine_predictions,
+                                     draft_greedy_op, draft_sample_return,
+                                     refine_greedy_op, refined_sample_return,
+                                     target_embeddings,
+                                     draft_greedy_op_embeddings,
+                                     draft_sample_return_embeddings, 
+                                     refine_greedy_op_embeddings,
+                                     refined_sample_return_embeddings,
                                      Model
                                      )
         predictions = refine_predictions if refine_predictions is not None else draft_predictions
@@ -127,7 +139,8 @@ def val_step(
                                      predictions[:, 1:], 
                                      step, 
                                      write_output_seq,
-                                     input_ids
+                                     input_ids,
+                                     False
                                       )
 
     return (task_score, bert_f1, 

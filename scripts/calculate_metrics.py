@@ -13,6 +13,7 @@ loss_object = tf.keras.losses.CategoricalCrossentropy(
                                                       reduction='none'
                                                       )
 cos_sim_loss = tf.keras.losses.CosineSimilarity(reduction='none')
+
 class evaluation_metrics:
 
     def __init__(self, true_output_sequences, predicted_output_sequences, task=config.task):
@@ -110,7 +111,6 @@ def compute_cosine_similarity(target_embeddings,
                               target_ids):
 
     cosine_sim_loss = cos_sim_loss(target_embeddings, generated_embeddings)
-    #mask = tf.cast(tf.math.logical_not(tf.math.equal(target_ids, 0)), dtype=cosine_sim_loss.dtype)
     mask = tf.math.logical_not(tf.math.logical_or(tf.math.equal(
                                                             target_ids, 
                                                             config.CLS_ID
@@ -196,7 +196,7 @@ def loss_function(target_ids, draft_predictions, refine_predictions,
                                                    target_ids, target_embeddings,
                                                    draft_greedy_op_embeddings,
                         draft_sample_return_embeddings) if draft_greedy_op  is  not None else 0.0
-    draft_loss = (1-gamma)*draft_loss + gamma * pg_draft_loss
+    draft_loss = (1-gamma)*draft_loss + (gamma * pg_draft_loss)
     if refine_predictions is not None:
         refine_loss, target = calculate_refine_loss(target_ids_3D, target_ids, refine_predictions)
         pg_refine_loss = calculate_policy_gradient_loss(refine_greedy_op,
@@ -204,7 +204,7 @@ def loss_function(target_ids, draft_predictions, refine_predictions,
                                                         target_ids,target_embeddings,
                                                         refine_greedy_op_embeddings,
                         refined_sample_return_embeddings) if refine_greedy_op  is  not None else 0.0
-        refine_loss = (1-gamma)*refine_loss + gamma * pg_refine_loss
+        refine_loss = (1-gamma)*refine_loss + (gamma * pg_refine_loss)
     else:
         refine_loss = 0.0
     regularization_loss = tf.add_n(model.losses)

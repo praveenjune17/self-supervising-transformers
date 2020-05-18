@@ -1,10 +1,11 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import, division, print_function, unicode_literals
 import sys
-sys.path.insert(0, 'D:\\Local_run\\Summarize_or_translate_using_transformers\\scripts')
+sys.path.insert(0, 'D:\\Local_run\\self-supervising-transformers\\scripts')
 sys.path.insert(0, 'D:\\Local_run\\models')
 import tensorflow as tf
-tf.keras.backend.clear_session()
+tf.config.experimental_run_functions_eagerly(True)
+#tf.keras.backend.clear_session()
 tf.random.set_seed(100)
 import time
 from tqdm import tqdm
@@ -22,7 +23,7 @@ train_dataset = create_dataset(
                               target_tokenizer=target_tokenizer, 
                               from_=0, 
                               to=100, 
-                              batch_size=2,
+                              batch_size=config.train_batch_size,
                               shuffle=False
                               )
 

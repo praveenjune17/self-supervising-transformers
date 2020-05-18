@@ -22,10 +22,7 @@ def _embedding_from_bert():
     return (decoder_embedding, input_pretrained_bert, target_pretrained_bert)
 
 class Bertified_transformer(tf.keras.Model):
-    """
-    Pretraining-Based Natural Language Generation for Text Summarization 
-    https://arxiv.org/pdf/1902.09243.pdf
-    """
+    
     def __init__(
                   self, 
                   num_layers, 
@@ -50,6 +47,21 @@ class Bertified_transformer(tf.keras.Model):
                                        )
         self.decoder = Decoder(num_layers, d_model, num_heads, dff, target_vocab_size, rate, 
                                add_pointer_generator=add_pointer_generator)
+
+    def create_returns_and_greedy_op(self, logits):
+        # (batch_size, seq_len)
+        greedy_op = tf.math.argmax(logits, axis=-1, output_type=tf.int32)
+        batch_size = tf.shape(logits)[0]
+        reshaped_logits = tf.reshape(logits, (-1, config.target_vocab_size))
+        select_samples = tf.random.categorical(reshaped_logits, 1, seed=1,dtype=tf.int32)
+        sample_return = tf.reshape(select_samples, (batch_size, -1))
+        # (batch_size, seq_len, d_bert)
+        greedy_op_embeddings = self.decoder_embedding(greedy_op)[0]
+        # (batch_size, seq_len, d_bert)
+        sample_return_embeddings = self.decoder_embedding(sample_return)[0]
+        #(batch_size, seq_len, d_bert)*2, (batch_size, seq_len)*2
+        return (greedy_op_embeddings, sample_return_embeddings, greedy_op, sample_return)
+
     def draft_summary(self,
                       input_ids,
                       enc_output,
@@ -58,18 +70,28 @@ class Bertified_transformer(tf.keras.Model):
                       target_ids,
                       training):
         # (batch_size, seq_len, d_bert)
-        dec_ip = self.decoder_embedding(target_ids)
+        target_embeddings = self.decoder_embedding(target_ids)
         # (batch_size, seq_len, vocab_len), (_)            
         draft_logits, draft_attention_dist = self.decoder(
                                                           input_ids,
-                                                          dec_ip, 
+                                                          target_embeddings, 
                                                           enc_output, 
                                                           training, 
                                                           look_ahead_mask, 
                                                           padding_mask
                                                           )
-        # (batch_size, seq_len, vocab_len)
-        return draft_logits, draft_attention_dist
+        if config.gamma:
+            (draft_greedy_op_embeddings,
+            draft_sample_return_embeddings,
+            draft_greedy_op,
+            draft_sample_return) = self.create_returns_and_greedy_op(draft_logits)
+        else:
+            draft_greedy_op = draft_sample_return = None
+            draft_greedy_op_embeddings = draft_sample_return_embeddings = None
+
+        return (draft_logits, draft_attention_dist, target_embeddings,
+               draft_greedy_op, draft_sample_return,
+               draft_greedy_op_embeddings, draft_sample_return_embeddings)
 
     def refine_summary(self,
                        input_ids, 
@@ -116,9 +138,22 @@ class Bertified_transformer(tf.keras.Model):
                             [batch_size, 1, 1]
                             )
         # (batch_size, seq_len, vocab_len)
-        total_refine_logits = tf.concat([cls_logits, refined_logits], axis=1)
+        refined_logits = tf.concat([cls_logits, refined_logits], axis=1)
+
+        if config.gamma:
+            # (batch_size, seq_len)
+            (refine_greedy_op_embeddings,
+            refined_sample_return_embeddings,
+            refine_greedy_op,
+            refined_sample_return) = self.create_returns_and_greedy_op(refined_logits)
+        else:
+            refine_greedy_op = refined_sample_return = None
+            refine_greedy_op_embeddings = refined_sample_return_embeddings = None
         # (batch_size, seq_len, vocab_len)
-        return total_refine_logits, refine_attention_dist
+        return (refined_logits, refine_attention_dist, 
+               refine_greedy_op, refined_sample_return,
+               refine_greedy_op_embeddings,
+               refined_sample_return_embeddings)
 
     def refined_output_sequence_sampling(self,
                                          input_ids, 
@@ -154,7 +189,7 @@ class Bertified_transformer(tf.keras.Model):
                                                         look_ahead_mask=None,
                                                         padding_mask=dec_padding_mask
                                                       )
-            # (batch_size, 1, vocab_len)
+            # (batch_size, 1, target_vocab_size)
             dec_output_i = dec_output[:, i:i+1 ,:]
             truncated_logits = topp_topk(logits=dec_output_i, 
                                 batch_size=batch_size,
@@ -169,60 +204,43 @@ class Bertified_transformer(tf.keras.Model):
         # (batch_size, seq_len, vocab_len), (_)        
         return dec_input, attention_dist
 
-    def refine_using_policy_gradients(self,
-                                     input_ids, 
-                                     enc_output,
-                                     training=True):
-
-        dec_input = [config.CLS_ID]
-        sample_targets = [config.CLS_ID]
-        for i in (range(1, config.target_seq_length)):
-            # (batch_size, seq_len)
-            _, combined_mask, dec_padding_mask = create_masks(input_ids, dec_input)
-            # (batch_size, seq_len, d_bert)
-            context_vectors = self.decoder_bert_model(dec_input)[0]
-            # (batch_size, seq_len, d_bert), (_)
-            dec_output,  attention_dist =  self.decoder(input_ids,
-                                                        context_vectors,
-                                                        enc_output,
-                                                        training=training,
-                                                        look_ahead_mask=combined_mask,
-                                                        padding_mask=dec_padding_mask
-                                                      )
-            # (batch_size, 1, vocab_len)
-            dec_output_i = dec_output[:, -1: ,:]
-            predicted_id = tf.expand_dims(tf.cast(tf.argmax(dec_output_i, axis=-1), tf.int32), 1)
-            sample_return = tf.random.categorical(dec_output_i, num_samples=1, dtype=tf.int32, seed=1)
-            sample_targets = tf.concat([sample_targets, sample_return], axis=-1)
-            dec_input = tf.concat([dec_input, predicted_id], axis=-1)
-        # dec_input (batch_size, seq_len, vocab_len)
-        # sample_targets (batch_size, seq_len, vocab_len)
-        return (dec_input, sample_targets, target_ids)
-
     def fit(self, input_ids, target_ids, training, enc_padding_mask, 
            look_ahead_mask, dec_padding_mask):
         
         # (batch_size, seq_len, d_bert)
         enc_output = self.encoder(input_ids)[0]
         # (batch_size, seq_len, vocab_len), _
-        draft_logits, draft_attention_dist = self.draft_summary(
-                                                                input_ids,
-                                                                enc_output=enc_output,
-                                                                look_ahead_mask=look_ahead_mask,
-                                                                padding_mask=dec_padding_mask,
-                                                                target_ids=target_ids,
-                                                                training=training
-                                                               )
-        # (batch_size, seq_len, vocab_len), _
-        refine_logits, refine_attention_dist = self.refine_summary(
+        (draft_logits, draft_attention_dist,
+        target_embeddings,  
+        draft_greedy_op, draft_sample_return,
+        draft_greedy_op_embeddings,
+        draft_sample_return_embeddings) = self.draft_summary(
+                                                              input_ids,
+                                                              enc_output=enc_output,
+                                                              look_ahead_mask=look_ahead_mask,
+                                                              padding_mask=dec_padding_mask,
+                                                              target_ids=target_ids,
+                                                              training=training
+                                                             )
+        #(batch_size, seq_len, vocab_len), _
+        (refine_logits, refine_attention_dist,
+        refine_greedy_op, refined_sample_return,
+        refine_greedy_op_embeddings,
+        refined_sample_return_embeddings) = self.refine_summary(
                                                                 input_ids,
                                                                 enc_output=enc_output,
                                                                 target=target_ids,            
                                                                 padding_mask=dec_padding_mask,
                                                                 training=training
                                                                 )
-              
-        return draft_logits, draft_attention_dist, refine_logits, refine_attention_dist
+        
+        return (draft_logits, draft_attention_dist, 
+                refine_logits, refine_attention_dist,
+                draft_greedy_op, draft_sample_return,
+                refine_greedy_op, refined_sample_return,
+                target_embeddings, draft_greedy_op_embeddings,
+                draft_sample_return_embeddings, refine_greedy_op_embeddings,
+                refined_sample_return_embeddings)
 
     def predict(self,
                input_ids,
@@ -240,7 +258,7 @@ class Bertified_transformer(tf.keras.Model):
         # (batch_size, seq_len, vocab_len), 
         # ()
         (predicted_draft_output_sequence, 
-          draft_attention_dist) = draft_decoder(self,
+          draft_attention_dist) = self.draft_decoder(
                                                 input_ids,
                                                 enc_output=enc_output,
                                                 beam_size=beam_size,

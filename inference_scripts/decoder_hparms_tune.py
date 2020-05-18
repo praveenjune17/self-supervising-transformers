@@ -1,5 +1,5 @@
 import sys
-sys.path.insert(0, 'D:\\Local_run\\Summarize_or_translate_using_transformers\\scripts')
+sys.path.insert(0, 'D:\\Local_run\\self-supervising-transformers\\scripts')
 sys.path.insert(0, 'D:\\Local_run\\models')
 import tensorflow as tf
 tf.random.set_seed(100)

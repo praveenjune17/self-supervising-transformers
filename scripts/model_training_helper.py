@@ -39,7 +39,7 @@ val_step_signature = [
                       tf.TensorSpec(shape=(None), dtype=tf.bool)
                      ]
 
-@tf.function(input_signature=train_step_signature)
+@tf.function(experimental_relax_shapes=True)#(input_signature=train_step_signature, experimental_compile=True)
 def train_step(input_ids, 
                target_ids,
                grad_accum_flag):
@@ -77,7 +77,6 @@ def train_step(input_ids,
                                      refined_sample_return_embeddings,
                                      Model
                                      )
-        predictions = refine_predictions if refine_predictions is not None else draft_predictions
         scaled_loss = optimizer.get_scaled_loss(loss)
     scaled_gradients  = tape.gradient(scaled_loss, train_variables)
     gradients = optimizer.get_unscaled_gradients(scaled_gradients)
@@ -96,13 +95,13 @@ def train_step(input_ids,
             for accumulator in (gradient_accumulators):
                 accumulator.assign(tf.zeros_like(accumulator))
             train_loss(loss)
-            train_accuracy(target, predictions)
+            train_accuracy(target, refine_predictions)
     else:
         optimizer.apply_gradients(zip(gradients, train_variables))
         train_loss(loss)
-        train_accuracy(target, predictions)
+        train_accuracy(target, refine_predictions)
 
-    return predictions
+    return refine_predictions
 
 #@tf.function(input_signature=val_step_signature) #slow with tf.function
 def val_step(
