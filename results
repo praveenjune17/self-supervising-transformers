@@ -1,0 +1,51 @@
+NFO:tensorflow:None
+INFO:tensorflow:Time taken to feed the input data to the model 1.4025912284851074 seconds
+INFO:tensorflow:Train_Loss 3.7428 Train_Accuracy 0.7200
+INFO:tensorflow:target -> வெற்றாக்குகிறது
+INFO:tensorflow:predicted by teacher forcing ->              வெற்றாக்குதல்ாக
+40it [00:46,  1.01s/it]INFO:tensorflow:Train_Loss 3.8103 Train_Accuracy 0.6800
+INFO:tensorflow:target -> யீல்ட்
+INFO:tensorflow:predicted by teacher forcing ->              யூல் :ஸ்ி்ா
+
+INFO:tensorflow:Time taken to feed the input data to the model 1.163682460784912 seconds
+INFO:tensorflow:Train_Loss 3.6417 Train_Accuracy 0.6800
+INFO:tensorflow:target -> சீட்டு கருப்பொருட்கள் :
+INFO:tensorflow:predicted by teacher forcing ->              சீட்டு கருப்பொருட்கள்கள் : சகள்
+40it [00:51,  1.15s/it]INFO:tensorflow:Train_Loss 3.6234 Train_Accuracy 0.6267
+INFO:tensorflow:target -> ஒரு உள்ளமை பிழை நேர்ந்தது
+INFO:tensorflow:predicted by teacher forcing ->              ஒரு உள்ளமை பிழை நிர்ந்ததுடுது
+60it [01:13,  1.09s/it]INFO:tensorflow:Train_Loss 3.7361 Train_Accuracy 0.5978
+INFO:tensorflow:target -> விவரங்கள் :
+INFO:tensorflow:predicted by teacher forcing ->              விவரங்கள் : : : : : : அளவு : :
+80it [01:35,  1.04s/it]INFO:tensorflow:Train_Loss 3.6961 Train_Accuracy 0.6083
+INFO:tensorflow:target -> குறிப்பிற்கான பாணி,,,
+INFO:tensorflow:predicted by teacher forcing ->              குறிப்பம், பாணி,,,,,
+100it [01:56,  1.07s/it]INFO:tensorflow:Train_Loss 3.6951 Train_Accuracy 0.6013
+INFO:tensorflow:target -> சாதனம் காலாவதியானது
+INFO:tensorflow:predicted by teacher forcing ->              சாதன சாலுவதியானது??து
+120it [02:18,  1.03s/it]INFO:tensorflow:Train_Loss 3.7375 Train_Accuracy 0.6000
+INFO:tensorflow:target -> : நிமிடம்
+INFO:tensorflow:predicted by teacher forcing ->              : நிமிடம் : : : : : : : :
+
+
+INFO:tensorflow:Time taken to feed the input data to the model 1.441422700881958 seconds
+INFO:tensorflow:Train_Loss 3.3255 Train_Accuracy 0.6000
+INFO:tensorflow:target -> ஒரு உள்ளமை பிழை நேர்ந்தது
+INFO:tensorflow:predicted by teacher forcing ->              ஒரு உள்ளமை பிழை நிர்ந்ததுன
+80it [01:28,  1.06s/it]INFO:tensorflow:Train_Loss 3.4036 Train_Accuracy 0.6667
+INFO:tensorflow:target -> குறிப்பிற்கான பாணி,,,
+INFO:tensorflow:predicted by teacher forcing ->              குறிப்பம், பாணி,,,,
+
+INFO:tensorflow:target -> ஐ தேர்வில் சேர்க்க இயலாது
+INFO:tensorflow:predicted by teacher forcing ->              ஐ தேர்வை சேர்க்க இயலாதுக்கு
+
+INFO:tensorflow:target -> பற்றி
+INFO:tensorflow:predicted by teacher forcing ->              பற்றி பற்றிக் பற்றி பற்றி பற்றி பற்றி அ பற்றி : பற்றியான பற்றி
+
+
+INFO:tensorflow:target -> ஒரு உள்ளமை பிழை நேர்ந்தது
+INFO:tensorflow:predicted by teacher forcing ->              ஒரு உள்ளமை பிழை நிர்ந்ததுன
+80it [01:28,  1.05s/it]INFO:tensorflow:Train_Loss 3.4048 Train_Accuracy 0.6667
+INFO:tensorflow:target -> குறிப்பிற்கான பாணி,,,
+INFO:tensorflow:predicted by teacher forcing ->              குறிப்பம், பாணி,,,,
+120it [02:10,  1.03s/it]INFO:tensorflow:Train_Loss 3.6093 Train_Accuracy 0.5778

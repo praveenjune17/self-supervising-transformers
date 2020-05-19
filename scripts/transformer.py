@@ -231,8 +231,6 @@ class Decoder(tf.keras.layers.Layer):
 
         seq_len = tf.shape(target_ids)[1]
         attention_weights = {}
-        if not config.model=='bertified_transformer':
-            target_ids = self.decoder_embedding(target_ids)
         # (batch_size, target_seq_len, d_model) 
         target_ids *= tf.math.sqrt(tf.cast(self.d_model, tf.float32))
         target_ids += self.pos_encoding[:, :seq_len, :]
@@ -326,79 +324,3 @@ class Pointer_Generator(tf.keras.layers.Layer):
         logits = tf.math.log(total_distribution)
         
         return logits
-
-class Transformer(tf.keras.Model):
-
-    def __init__(self, num_layers, d_model, num_heads, dff, input_vocab_size, 
-               target_vocab_size, rate=config.dropout_rate, 
-               add_pointer_generator=None):
-        super(Transformer, self).__init__()
-
-        self.encoder = Encoder(num_layers, d_model, num_heads, dff, 
-                               input_vocab_size, rate)
-        self.decoder = Decoder(num_layers, d_model, num_heads, dff, 
-                               target_vocab_size, rate, add_pointer_generator)
-
-    def fit(self, input_ids, target_ids, training, enc_padding_mask, 
-           look_ahead_mask, dec_padding_mask):
-
-        # (batch_size, inp_seq_len, d_model)
-        enc_output = self.encoder(input_ids, training, enc_padding_mask)  
-        # (batch_size, tar_seq_len, target_vocab_size), ()
-        final_output, attention_weights = self.decoder(
-                                                    input_ids,
-                                                    target_ids, 
-                                                    enc_output, 
-                                                    training, 
-                                                    look_ahead_mask, 
-                                                    dec_padding_mask
-                                                    )
-        
-        return (final_output, attention_weights, None, None)
-
-
-    def predict(self,
-               input_ids,
-               enc_padding_mask,
-               decoder_type=config.draft_decoder_type,
-               beam_size=config.beam_size,
-               length_penalty=config.length_penalty,
-               temperature=config.softmax_temperature, 
-               top_p=config.top_p,
-               top_k=config.top_k):
-
-        # (batch_size, inp_seq_len, d_model)
-        # Both dec_padding_mask and enc_padding_mask are same
-        batch_size = tf.shape(input_ids)[0]
-        enc_output = self.encoder(input_ids, False, enc_padding_mask)
-        # (batch_size, seq_len, vocab_len), 
-        # ()
-        (predicted_draft_output_sequence, 
-          draft_attention_dist) = draft_decoder(self,
-                                                input_ids,
-                                                enc_output=enc_output,
-                                                beam_size=beam_size,
-                                                length_penalty=length_penalty,
-                                                temperature=temperature,
-                                                top_p=top_p, 
-                                                top_k=top_k,
-                                                batch_size=batch_size)
-
-        return (predicted_draft_output_sequence, draft_attention_dist, None, None)
-
-    def call(self, input_ids, target_ids, dec_padding_mask, 
-             enc_padding_mask, look_ahead_mask, training,
-             decoder_type, beam_size, length_penalty, 
-             temperature, top_p, top_k):
-
-        if training is not None:
-            return self.fit(input_ids, target_ids, training, enc_padding_mask, 
-                            look_ahead_mask, dec_padding_mask)
-        else:
-            return self.predict(input_ids, enc_padding_mask,
-                               decoder_type=decoder_type,
-                               beam_size=beam_size,
-                               length_penalty=length_penalty,
-                               temperature=temperature, 
-                               top_p=top_p,
-                               top_k=top_k)

@@ -169,32 +169,47 @@ class Bertified_transformer(tf.keras.Model):
         # (batch_size, seq_len, vocab_len), (_)        
         return dec_input, attention_dist
 
-    def cosine_sim(self, x, y):
+    def cosine_sim(x, y):
 
-        x = x/(tf.norm(x, axis=-1)[:, :, tf.newaxis])
-        y = y/(tf.norm(y, axis=-1)[:, :, tf.newaxis])
+        x = x/tf.norm(x, axis=-1)[:, :, tf.newaxis]
+        y = y/tf.norm(y, axis=-1)[:, :, tf.newaxis]
         output = tf.matmul(x, y, transpose_b=True)
-        scores = tf.transpose(output, (0, 2, 1))
 
-        return scores
+        return output
+        
+    def calculate_bert_f1(refs, cands):
+    
+        reference_embeddings = tf.convert_to_tensor(model.get_weights()[0][refs['input_ids'], :])
+        gen_embeddings = tf.convert_to_tensor(model.get_weights()[0][cands['input_ids'],:])
+        scores = cosine_sim(reference_embeddings, gen_embeddings)
+        scores = tf.transpose(scores, (0, 2, 1))
+        tar=tf.convert_to_tensor(refs['attention_mask'])[:, :, tf.newaxis,]
+        sam=tf.convert_to_tensor(cands['attention_mask'])[:, tf.newaxis,: ]
+        mask = tf.cast(tf.matmul(tar, sam), dtype=tf.float32)
+        mask = tf.transpose(mask, (0, 2, 1))
+        scores = scores*mask
+        recall = tf.reduce_max(scores, 1)
+        precision = tf.reduce_max(scores, 2)
+        tar_mask = tf.cast(tf.squeeze(tar), dtype=tf.float32)
+        sam_mask = tf.cast(tf.squeeze(sam), dtype=tf.float32)
+        recall=tf.reduce_sum(recall, 1)
+        precision=tf.reduce_sum(precision, 1)
+        recall = recall/tf.reduce_sum(tar_mask, 1)
+        precision = precision/tf.reduce_sum(sam_mask, 1)
+        f1 = (2*(precision*recall))/(precision+recall)
 
-    def create_returns_and_greedy_op(self, logits, target_embeddings):
+        return tf.reduce_mean(f1)
+
+    def create_returns_and_greedy_op(self, logits):
         # (batch_size, seq_len)
         batch_size = tf.shape(logits)[0]
-        greedy_returns = tf.math.argmax(logits, axis=-1, output_type=tf.int32)
         reshaped_logits = tf.reshape(logits, (-1, config.target_vocab_size))
         select_samples = tf.random.categorical(reshaped_logits, 1, seed=1,dtype=tf.int32)
-        sample_returns = tf.reshape(select_samples, (batch_size, -1))
+        sample_return = tf.reshape(select_samples, (batch_size, -1))
         # (batch_size, seq_len, d_bert)
-        sample_return_embeddings = self.decoder_embedding(sample_returns)
-        greedy_return_embeddings = self.decoder_embedding(greedy_returns)
-        sample_returns_scores = self.cosine_sim(target_embeddings,
-                                                sample_return_embeddings
-                                                )
-        greedy_returns_scores = self.cosine_sim(target_embeddings,
-                                                greedy_return_embeddings
-                                               )
-        return (sample_returns_scores, greedy_returns_scores, sample_returns, greedy_returns)
+        sample_return_embeddings = self.decoder_embedding(sample_return)[0]
+        #(batch_size, seq_len, d_bert)*2, (batch_size, seq_len)*2
+        return (sample_return_embeddings, sample_return)
 
     def fit(self, input_ids, target_ids, training, enc_padding_mask, 
            look_ahead_mask, dec_padding_mask):
@@ -220,22 +235,15 @@ class Bertified_transformer(tf.keras.Model):
                                                                 training=training
                                                                 )
         
-        (draft_sample_returns_scores,
-        draft_greedy_returns_scores, 
-        draft_sample_returns, 
-        draft_greedy_returns) = self.create_returns_and_greedy_op(draft_logits, target_embeddings)
+        (draft_sample_return_embeddings,
+        draft_sample_return) = self.create_returns_and_greedy_op(draft_logits)
         
-        (refine_sample_returns_scores,
-        refine_greedy_returns_scores,
-        refine_sample_returns, 
-        refine_greedy_returns) = self.create_returns_and_greedy_op(refine_logits, target_embeddings)
+        (refine_sample_return_embeddings,
+        refine_sample_return) = self.create_returns_and_greedy_op(refine_logits)
               
-        return (draft_logits, draft_attention_dist, refine_logits, 
-                refine_attention_dist, draft_sample_returns_scores, 
-                draft_greedy_returns_scores, draft_sample_returns, 
-                draft_greedy_returns, refine_sample_returns_scores, 
-                refine_greedy_returns_scores, refine_sample_returns, 
-                refine_greedy_returns)
+        return (draft_logits, draft_attention_dist, refine_logits, refine_attention_dist, 
+                target_embeddings, draft_sample_return_embeddings, draft_sample_return, 
+                refine_sample_return_embeddings, refine_sample_return)
 
     def predict(self,
                input_ids,

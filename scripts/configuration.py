@@ -37,7 +37,7 @@ model_parms = {
      'target_pretrained_model' : 'distilbert-base-multilingual-cased',#'bert-base-uncased',
                                                                      #'bert-base-multilingual-cased',
                                                                     #'distilbert-base-multilingual-cased'
-     'target_seq_length': 15,
+     'target_seq_length': 20,
      'task':'translate'            # must be translate or summarize
      }
 
@@ -47,8 +47,8 @@ training_parms = {
      'early_stop' : False,
      'enable_jit' : True,
      'eval_after_steps' : 5000,              # Evaluate after these many training steps
-     'gamma' : 0.001,
-     'gradient_accumulation_steps': 36,   
+     'gamma' : 0.9984,
+     'gradient_accumulation_steps': 18,   
      'last_recorded_value': 0.5459,
      'min_train_loss' : 1.0,
      'monitor_metric' : 'unified_metric',
@@ -56,7 +56,7 @@ training_parms = {
      'samples_to_train' : -1,
      'samples_to_validate' : 126,            
      'start_evaluate_when' : 6.0,           # run evaluation when loss reaches 10
-     'steps_to_print_training_info': 40,      # print training progress per number of batches specified
+     'steps_to_print_training_info': 20,      # print training progress per number of batches specified
      'tfds_name' : 'en_tam_parallel_text',            #cnn_dailymail,en_tam_parallel_text     # tfds dataset to be used
      'init_tolerance' : 0,
      'tolerance_threshold': 7,          # Stop training after the threshold is reached

@@ -15,6 +15,8 @@ For using custom tokenizers for transformer model please train it using 'create_
 Please donot train BERTWordpiece tokenizer for tamil seems it removes '.' from the characters make use of ByteLevelBPETokenizer
 instead.
   
+Removed baseline reward for policy gradients since tf.function creates issues when instantiating cosine_similarity loss twice.
+  could be mitigated by tf.config.experimental_run_functions_eagerly(True), but hurts performance by 4X
 #########################
 Positional encoding:-
 	'''Positional encoding is added to give the model some information about the 

@@ -41,7 +41,7 @@ Coding
 *) stage wise testing
 *) refine_attention_distribution fix required
 *) clean summarize_or_translate repo
-*) clean way to tie all the three functionalities
+*) refactor calculate_metrics.py
 *) policy gradient approach (start with)
 			a) immediate reward:- autoregressive score using decoder.. like beam search
 			b) BERT score :- reward to use once the sentence is generated

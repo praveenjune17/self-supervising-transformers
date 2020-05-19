@@ -96,63 +96,56 @@ def label_smoothing(inputs, epsilon):
     V = tf.cast(V, dtype=inputs.dtype)
 
     return ((1-epsilon) * inputs) + (epsilon / V)
+
+'''
+tar = tf.convert_to_tensor(refs['attention_mask'])[:, :, tf.newaxis,]
+        sam = tf.convert_to_tensor(cands['attention_mask'])[:, tf.newaxis,: ]
+        mask = tf.cast(tf.matmul(tar, sam), dtype=tf.float32)
+        mask = tf.transpose(mask, (0, 2, 1))
+        scores = scores*mask
+        recall = tf.reduce_max(scores, 1)
+        precision = tf.reduce_max(scores, 2)
+        tar_mask = tf.cast(tf.squeeze(tar), dtype=tf.float32)
+        sam_mask = tf.cast(tf.squeeze(sam), dtype=tf.float32)
+        recall=tf.reduce_sum(recall, 1)
+        precision=tf.reduce_sum(precision, 1)
+        recall = recall/tf.reduce_sum(tar_mask, 1)
+        precision = precision/tf.reduce_sum(sam_mask, 1)
+        f1 = (2*(precision*recall))/(precision+recall)
+
+        return tf.reduce_mean(f1)
+'''
 # nll :- negative_log_liklihood
 def mask_and_calculate_loss(predicted_ids, 
                             target_ids, 
                             mask_a_with,
+                            target_ids_embeddings=None,
                             mask_b_with=config.PAD_ID,
-                            epsilon=config.epsilon_ls
-                            ):
+                            epsilon=config.epsilon_ls,
+                            criterion='nll'):
 
-    
-    target_ids_3D = label_smoothing(tf.one_hot(target_ids, depth=config.target_vocab_size), epsilon)
-    loss = negative_log_liklihood(target_ids_3D, predicted_ids)
-    # mask = tf.math.logical_not(tf.math.logical_or(
-    #                               tf.math.equal(target_ids, mask_a_with), 
-    #                               tf.math.equal(target_ids, mask_b_with))
-    #                            )
-    # mask = tf.cast(mask, dtype=loss.dtype)
-    mask = create_mask_for_pg(target_ids, loss, mask_a_with, mask_b_with)
+    if criterion =='nll':
+        target_ids_3D = label_smoothing(tf.one_hot(target_ids, depth=config.target_vocab_size), epsilon)
+        loss = negative_log_liklihood(target_ids_3D, predicted_ids)
+    else:
+        target_ids_3D = target_ids_embeddings
+        loss = cosine_similarity(target_ids_embeddings, predicted_ids)
+    mask = tf.math.logical_not(tf.math.logical_or(
+                                  tf.math.equal(target_ids, mask_a_with), 
+                                  tf.math.equal(target_ids, mask_b_with))
+                               )
+     
+    mask = tf.cast(mask, dtype=loss.dtype)
     loss = loss * mask
     loss = tf.reduce_sum(loss)/tf.reduce_sum(mask)
 
     return loss, target_ids_3D
 
-def create_mask_for_pg(ids, scores, mask_a_with=config.CLS_ID, 
-                      mask_b_with=config.PAD_ID):
-      
-    mask = tf.math.logical_not(tf.math.logical_or(
-                                  tf.math.equal(ids, mask_a_with), 
-                                  tf.math.equal(ids, mask_b_with))
-                               )
-    mask = tf.cast(mask, dtype=scores.dtype)
-
-    return mask
-
-def calculate_bert_f1(target_ids, predicted, scores):
-      
-    target_mask = create_mask_for_pg(target_ids, scores)
-    predicted_return_mask = create_mask_for_pg(predicted, scores)
-    mask = tf.matmul(target_mask[:, :, tf.newaxis,], predicted_return_mask[:, tf.newaxis,: ])
-    mask = tf.transpose(mask, (0, 2, 1))
-    scores = scores*mask
-    recall = tf.reduce_max(scores, 1)
-    precision = tf.reduce_max(scores, 2)
-    recall = tf.reduce_sum(recall, 1)
-    precision = tf.reduce_sum(precision, 1)
-    recall = recall/tf.reduce_sum(target_mask, -1)
-    precision = precision/tf.reduce_sum(predicted_return_mask, -1)
-    f1_score = (2*(precision*recall))/(precision+recall)
-    bert_f1 = tf.reduce_mean(f1_score)
-
-    return bert_f1
-
 def calculate_policy_gradient_loss(predictions, 
-                          sample_returns, 
+                          sample_targets, 
                           target_ids,
-                          greedy_returns,
-                          sample_returns_scores,
-                          greedy_returns_scores,
+                          target_embeddings,
+                          sample_return_embeddings,
                           nll_loss,
                           gamma=config.gamma
                           ):
@@ -160,31 +153,28 @@ def calculate_policy_gradient_loss(predictions,
     #sample_targets :- (batch_size, seq_len)
     #greedy_op :- (batch_size, seq_len)
     #target_ids :- (batch_size, seq_len+1)
-    sample_return_nll_loss, _ = mask_and_calculate_loss(predictions,
-                                                       sample_returns,
-                                                       config.CLS_ID,
-                                                       epsilon=0
-                                                      )
-    sample_bert_f1 = calculate_bert_f1(target_ids, sample_returns, sample_returns_scores)
-    greedy_baseline_bert_f1 = calculate_bert_f1(target_ids, greedy_returns, greedy_returns_scores)
-    pg_loss_with_baseline = (greedy_baseline_bert_f1-sample_bert_f1)*sample_return_nll_loss
-    tf.print('greedy_baseline_bert_f1')
-    tf.print(greedy_baseline_bert_f1)
-    tf.print('sample_bert_f1')
-    tf.print(sample_bert_f1)
-    tf.print()
+    #greedy_op_3D = tf.one_hot(greedy_op, depth=config.target_vocab_size)
+    sampled_returns_loss, _ = mask_and_calculate_loss(sample_return_embeddings,
+                                                     target_ids,
+                                                     config.CLS_ID,
+                                                     target_embeddings,
+                                                     criterion='cosine_similarity'
+                                                    )
+    pg_loss, _ = mask_and_calculate_loss(predictions,
+                                         sample_targets,
+                                         config.PAD_ID,
+                                         epsilon=0
+                                        )
+    pg_loss_with_baseline = (-sampled_returns_loss)*pg_loss
     loss_with_pg = (1-gamma)*nll_loss + (gamma * pg_loss_with_baseline)
 
     return loss_with_pg
 
 
 def loss_function(target_ids, draft_predictions, refine_predictions,
-                  draft_sample_returns_scores, draft_greedy_returns_scores,
-                 draft_sample_returns,
-                 draft_greedy_returns,
-                 refine_sample_returns_scores, refine_greedy_returns_scores,
-                 refine_sample_returns,
-                 refine_greedy_returns):
+                  target_embeddings, draft_sample_return_embeddings,  
+                  draft_sample_return, refine_sample_return_embeddings, 
+                  refine_sample_return):
 
     
     draft_loss, _ = mask_and_calculate_loss(
@@ -197,22 +187,32 @@ def loss_function(target_ids, draft_predictions, refine_predictions,
                                                   target_ids[:, :-1],
                                                   config.CLS_ID
                                                   )
+    # tf.print()
+    # tf.print('draft_loss')
+    # tf.print(draft_loss)
+    # tf.print()
+    # tf.print('refine_loss')
+    # tf.print(refine_loss)
     draft_loss = calculate_policy_gradient_loss(draft_predictions, 
-                                          draft_sample_returns, 
+                                          draft_sample_return, 
                                           target_ids[:, :-1],
-                                          draft_greedy_returns,
-                                          draft_sample_returns_scores,
-                                          draft_greedy_returns_scores,
+                                          target_embeddings,
+                                          draft_sample_return_embeddings,
                                           draft_loss
                                           )
     refine_loss = calculate_policy_gradient_loss(refine_predictions, 
-                                          refine_sample_returns, 
+                                          refine_sample_return, 
                                           target_ids[:, :-1],
-                                          refine_greedy_returns,
-                                          refine_sample_returns_scores,
-                                          refine_greedy_returns_scores,
+                                          target_embeddings,
+                                          refine_sample_return_embeddings,
                                           refine_loss
                                           )
+    # tf.print()
+    # tf.print('draft_loss_with_pg')
+    # tf.print(draft_loss)
+    # tf.print()
+    # tf.print('refine_loss_with_pg')
+    # tf.print(refine_loss)
     total_loss = tf.reduce_sum([draft_loss, refine_loss])
 
     return (total_loss, refine_target)

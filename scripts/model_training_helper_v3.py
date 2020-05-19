@@ -13,7 +13,7 @@ from calculate_metrics import (get_loss_and_accuracy, loss_function,
 
 policy = mixed_precision.Policy('mixed_float16')
 mixed_precision.set_policy(policy)
-#tf.config.optimizer.set_jit(config.enable_jit)
+tf.config.optimizer.set_jit(config.enable_jit)
 
 (train_output_sequence_writer, 
   _, _) = create_tensorboard_parms()
@@ -51,28 +51,25 @@ def train_step(input_ids,
                                                         )
     with tf.GradientTape() as tape:
         (draft_predictions, draft_attention_weights, 
-          refine_predictions, refine_attention_weights, 
-          draft_sample_returns_scores, draft_greedy_returns_scores,
-          draft_sample_returns, draft_greedy_returns,
-          refine_sample_returns_scores, refine_greedy_returns_scores, 
-          refine_sample_returns, refine_greedy_returns) = Model(
-                                                                 input_ids,
-                                                                 dec_padding_mask=dec_padding_mask,
-                                                                 target_ids=target_ids,
-                                                                 enc_padding_mask=enc_padding_mask, 
-                                                                 look_ahead_mask=combined_mask, 
-                                                                 training=True,
-                                                                 )
+          refine_predictions, refine_attention_weights, target_embeddings,
+          draft_sample_return_embeddings, draft_sample_return,
+          refine_sample_return_embeddings, refine_sample_return) = Model(
+                                                                         input_ids,
+                                                                         dec_padding_mask=dec_padding_mask,
+                                                                         target_ids=target_ids,
+                                                                         enc_padding_mask=enc_padding_mask, 
+                                                                         look_ahead_mask=combined_mask, 
+                                                                         training=True,
+                                                                         )
         train_variables = Model.trainable_variables
         loss, target = loss_function(target_ids, 
                                      draft_predictions,
                                      refine_predictions,
-                                     draft_sample_returns_scores, draft_greedy_returns_scores,
-                                     draft_sample_returns,
-                                     draft_greedy_returns,
-                                     refine_sample_returns_scores, refine_greedy_returns_scores,
-                                     refine_sample_returns,
-                                     refine_greedy_returns 
+                                     target_embeddings,
+                                     draft_sample_return_embeddings,
+                                     draft_sample_return,
+                                     refine_sample_return_embeddings,
+                                     refine_sample_return 
                                      )
         regularization_loss = tf.add_n(Model.losses)
         total_loss = tf.reduce_sum([loss, regularization_loss])
