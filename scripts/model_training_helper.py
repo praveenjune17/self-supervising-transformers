@@ -39,7 +39,7 @@ val_step_signature = [
                       tf.TensorSpec(shape=(None), dtype=tf.bool)
                      ]
 
-@tf.function(input_signature=train_step_signature)
+@tf.function(input_signature=train_step_signature)#, experimental_compile=True)
 def train_step(input_ids, 
                target_ids,
                grad_accum_flag):

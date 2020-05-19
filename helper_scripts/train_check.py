@@ -5,6 +5,7 @@ sys.path.insert(0, 'D:\\Local_run\\self-supervising-transformers\\scripts')
 sys.path.insert(0, 'D:\\Local_run\\models')
 import tensorflow as tf
 #tf.config.run_functions_eagerly(True)
+tf.config.set_soft_device_placement(True)
 tf.keras.backend.clear_session()
 tf.random.set_seed(100)
 import time
