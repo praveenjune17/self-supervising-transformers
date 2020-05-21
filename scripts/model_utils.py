@@ -84,7 +84,7 @@ def create_padding_mask(seq):
     '''The mask indicates where pad value 0 is present.
        it outputs a 1 at those locations, and a 0 otherwise.
     '''
-    seq = tf.cast(tf.math.equal(seq, 0), tf.float32)
+    seq = tf.cast(tf.math.equal(seq, config.PAD_ID), tf.float32)
     # add extra dimensions so that we can add the padding
     # to the attention logits.
 
@@ -192,7 +192,7 @@ def query_decoder(self, enc_output, input_ids,
       top_p, top_k, training=False):
 
     _, combined_mask, dec_padding_mask = create_masks(input_ids, dec_input)
-    embeddings = self.decoder_embedding(dec_input) if config.model == 'bertified_transformer' else dec_input
+    embeddings = self.decoder_embedding(dec_input)
     # (batch_size, i+1, vocab), (_)            
     dec_output, attention_dist = self.decoder(input_ids,
                                                embeddings, 

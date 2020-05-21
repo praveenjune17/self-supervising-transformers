@@ -13,7 +13,7 @@ from calculate_metrics import (get_loss_and_accuracy, loss_function,
 
 policy = mixed_precision.Policy('mixed_float16')
 mixed_precision.set_policy(policy)
-tf.config.optimizer.set_jit(config.enable_jit)
+#tf.config.optimizer.set_jit(config.enable_jit)
 
 (train_output_sequence_writer, 
   _, _) = create_tensorboard_parms()
@@ -39,7 +39,7 @@ val_step_signature = [
                       tf.TensorSpec(shape=(None), dtype=tf.bool)
                      ]
 
-@tf.function(input_signature=train_step_signature, experimental_compile=config.enable_jit)
+@tf.function(input_signature=train_step_signature)#, experimental_compile=True)
 def train_step(input_ids, 
                target_ids,
                grad_accum_flag):
@@ -49,25 +49,29 @@ def train_step(input_ids,
                                                         target_ids[:, :-1]
                                                         )
     with tf.GradientTape() as tape:
-        (logits, draft_logits, refine_logits, draft_attention_weights, 
-          refine_attention_weights, 
-          candidate_returns, candidate_scores, 
-          sample_returns) = Model(
-                                   input_ids,
-                                   dec_padding_mask=dec_padding_mask,
-                                   target_ids=target_ids,
-                                   enc_padding_mask=enc_padding_mask, 
-                                   look_ahead_mask=combined_mask, 
-                                   training=True,
-                                   )
+        (draft_predictions, draft_attention_weights, 
+          refine_predictions, refine_attention_weights, 
+          draft_sample_returns_scores, draft_greedy_returns_scores,
+          draft_sample_returns, draft_greedy_returns,
+          refine_sample_returns_scores, refine_greedy_returns_scores, 
+          refine_sample_returns, refine_greedy_returns) = Model(
+                                                                 input_ids,
+                                                                 dec_padding_mask=dec_padding_mask,
+                                                                 target_ids=target_ids,
+                                                                 enc_padding_mask=enc_padding_mask, 
+                                                                 look_ahead_mask=combined_mask, 
+                                                                 training=True,
+                                                                 )
         train_variables = Model.trainable_variables
         loss, target = loss_function(target_ids, 
-                                     logits,
-                                     draft_logits, 
-                                     refine_logits,
-                                     candidate_returns, 
-                                     candidate_scores,
-                                     sample_returns
+                                     draft_predictions,
+                                     refine_predictions,
+                                     draft_sample_returns_scores, draft_greedy_returns_scores,
+                                     draft_sample_returns,
+                                     draft_greedy_returns,
+                                     refine_sample_returns_scores, refine_greedy_returns_scores,
+                                     refine_sample_returns,
+                                     refine_greedy_returns 
                                      )
         regularization_loss = tf.add_n(Model.losses)
         total_loss = tf.reduce_sum([loss, regularization_loss])
@@ -89,13 +93,13 @@ def train_step(input_ids,
             for accumulator in (gradient_accumulators):
                 accumulator.assign(tf.zeros_like(accumulator))
             train_loss(loss)
-            train_accuracy(target, refine_logits)
+            train_accuracy(target, refine_predictions)
     else:
         optimizer.apply_gradients(zip(gradients, train_variables))
         train_loss(loss)
-        train_accuracy(target, refine_logits)
+        train_accuracy(target, refine_predictions)
 
-    return refine_logits
+    return refine_predictions
 
 #@tf.function(input_signature=val_step_signature) #slow with tf.function
 def val_step(

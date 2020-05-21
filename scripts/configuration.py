@@ -33,6 +33,7 @@ model_parms = {
      'model' : 'bertified_transformer',#bertified_transformer or transformer
      'num_heads': 8,                  # the number of heads in the multi-headed attention unit
      'num_layers': 8,                 # number of transformer blocks
+     'num_of_decoders_added' : 2, 
      'target_language' : 'ta',
      'target_pretrained_model' : 'distilbert-base-multilingual-cased',#'bert-base-uncased',
                                                                      #'bert-base-multilingual-cased',
@@ -45,7 +46,7 @@ training_parms = {
      'accumulate_gradients' : True,
      'display_model_summary' : True,
      'early_stop' : False,
-     'enable_jit' : True,
+     'enable_jit' : True,                    # disabled for windows automatically
      'eval_after_steps' : 5000,              # Evaluate after these many training steps
      'gamma' : 0.9984,
      'gradient_accumulation_steps': 18,   
@@ -85,14 +86,14 @@ h_parms = {
    'grad_clipnorm':None,
    'l2_norm':0.0,
    'learning_rate': None,              # set None to create decayed learning rate schedule
-   'train_batch_size': 1,
+   'train_batch_size': 2,
    'validation_batch_size' : 32
    }                                    
 
 dataset_name = training_parms['tfds_name']
 model = model_parms['model']
-core_path = os.getcwd()#"/content/drive/My Drive/"#os.getcwd()
-path_seperator = '\\' if platform.system() == 'Windows' else '/'
+core_path = os.getcwd()
+path_seperator,  training_parms['enable_jit'] = ('\\', False) if platform.system() == 'Windows' else ('/', True)
 file_path = {
         'best_ckpt_path' : os.path.join(core_path, f"best_checkpoints{path_seperator}{dataset_name+'_'+model}{path_seperator}"),  
         'checkpoint_path' : os.path.join(core_path, f"checkpoints{path_seperator}{dataset_name+'_'+model}{path_seperator}"),

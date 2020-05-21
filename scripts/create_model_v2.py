@@ -38,7 +38,7 @@ class Bertified_transformer(tf.keras.Model):
                   add_pointer_generator=None):
         super(Bertified_transformer, self).__init__()
 
-        self.target_vocab_size = tf.constant(target_vocab_size)
+        self.target_vocab_size = target_vocab_size
         (decoder_embedding, self.encoder, 
         self.decoder_bert_model) = _embedding_from_bert()
         self.decoder_embedding = tf.keras.layers.Embedding(
@@ -55,97 +55,45 @@ class Bertified_transformer(tf.keras.Model):
                       enc_output,
                       look_ahead_mask,
                       padding_mask,
-                      target_embeddings,
+                      target_ids,
                       training):
-
-        # draft_logits:-         (batch_size, tar_seq_len, tar_vocab_size)   
-        # draft_attention_dist:- (batch_size, tar_seq_len, inp_seq_len)        
+        # (batch_size, seq_len, d_bert)
+        dec_ip = self.decoder_embedding(target_ids)
+        # (batch_size, seq_len, vocab_len), (_)            
         draft_logits, draft_attention_dist = self.decoder(
                                                           input_ids,
-                                                          target_embeddings, 
+                                                          dec_ip, 
                                                           enc_output, 
                                                           training, 
                                                           look_ahead_mask, 
                                                           padding_mask
                                                           )
-        # (batch_size, tar_seq_len, tar_vocab_size)
+        # (batch_size, seq_len, vocab_len)
         return draft_logits, draft_attention_dist
 
-    def _cosine_sim(self, x, y):
+    def refine_summary(self,
+                       input_ids, 
+                       enc_output, 
+                       target, 
+                       padding_mask, 
+                       training):
 
-        x = x/(tf.norm(x, axis=-1)[:, :, tf.newaxis])
-        y = y/(tf.norm(y, axis=-1)[:, :, tf.newaxis])
-        scores = tf.matmul(y, x, transpose_b=True)
-        
-        return scores
-
-    def _refine_pre_process(self, target, input_ids, enc_output, padding_mask, batch_size, max_time_steps):
-
+        batch_size = tf.shape(enc_output)[0]
+        # exclued CLS_ID from tiling and masking
+        max_time_steps = config.target_seq_length - 1
         # (batch_size x (seq_len - 1), seq_len) 
-        dec_inp_ids = tile_and_mask_diagonal(
-                                            target, 
-                                            batch_size, 
-                                            max_time_steps, 
-                                            mask_with=config.MASK_ID
-                                            )
+        dec_inp_ids = tile_and_mask_diagonal(target, batch_size, 
+                                max_time_steps, mask_with=config.MASK_ID)
+        # (batch_size x (seq_len - 1), seq_len, d_bert)
+        context_vectors = self.decoder_bert_model(dec_inp_ids)[0]
         # (batch_size x (seq_len - 1), seq_len)
         input_ids = tf.tile(input_ids, [max_time_steps, 1])
         # (batch_size x (seq_len - 1), seq_len, d_bert) 
         enc_output = tf.tile(enc_output, [max_time_steps, 1, 1])
         # (batch_size x (seq_len - 1), 1, 1, seq_len) 
         padding_mask = tf.tile(padding_mask, [max_time_steps, 1, 1, 1])
-        # tile an identity matrix (batch_size*(tar_seq_len - 1), (tar_seq_len - 1))
-        mark_masked_indices = tf.tile(tf.eye(max_time_steps, dtype=tf.bool), [batch_size, 1])
-
-        return (dec_inp_ids, input_ids, enc_output, padding_mask, mark_masked_indices)
-
-    def _refine_post_process(self, refined_op, mark_masked_indices, batch_size, max_time_steps):
-        # * :- inp_seq_len if attention else tar_vocab_size
-
-        third_axis_len = tf.shape(refined_op)[-1]
-        one_hot_by = tf.cond(tf.math.equal(
-                                          third_axis_len,
-                                          self.target_vocab_size
-                                          ), lambda: self.target_vocab_size, 
-                                             lambda: third_axis_len
-                            )
-        add_cls_logits = tf.tile(tf.one_hot([config.CLS_ID], one_hot_by)[tf.newaxis,:,:], 
-                                            [batch_size, 1, 1])
-        # (batch_size x (tar_seq_len - 1), tar_seq_len - 1, *)
-        refined_op   = refined_op[:, 1:, :]
-        # (batch_size x (tar_seq_len - 1), *)
-        refined_op = tf.gather_nd(refined_op, indices=tf.where(mark_masked_indices))
-        # (batch_size, tar_seq_len - 1, *)
-        refined_op = tf.reshape(refined_op, [batch_size, max_time_steps, -1])
-        # (batch_size, tar_seq_len, *)
-        refined_op = tf.concat([add_cls_logits, refined_op], axis=1)
-
-        return refined_op
-
-    def refine_summary(self,
-                       input_ids, 
-                       batch_size,
-                       enc_output, 
-                       target, 
-                       padding_mask, 
-                       training):
-
-        # exclued CLS_ID from tiling and masking
-        max_time_steps = config.target_seq_length - 1
-        (dec_inp_ids, input_ids,
-         enc_output, padding_mask, 
-         mark_masked_indices) = self._refine_pre_process(target,
-                                                         input_ids, 
-                                                         enc_output,
-                                                         padding_mask, 
-                                                         batch_size,
-                                                         max_time_steps
-                                                         )
-        # (batch_size x (seq_len - 1), seq_len, d_bert)
-        context_vectors = self.decoder_bert_model(dec_inp_ids)[0]
-        # refined_logits        (batch_size x (tar_seq_len - 1), tar_seq_len, tar_vocab_size), 
-        # refine_attention_dist (batch_size x (tar_seq_len - 1), tar_seq_len, inp_seq_len)
-        refine_logits, refine_attention_dist = self.decoder(
+        # (batch_size x (seq_len - 1), seq_len, vocab_len), (_)
+        refined_logits, refine_attention_dist = self.decoder(
                                                            input_ids,
                                                            context_vectors,
                                                            enc_output,
@@ -153,18 +101,24 @@ class Bertified_transformer(tf.keras.Model):
                                                            look_ahead_mask=None,
                                                            padding_mask=padding_mask
                                                          )
-        refine_logits = self._refine_post_process(refine_logits,
-                                                  mark_masked_indices, 
-                                                  batch_size,
-                                                  max_time_steps
-                                                  )
-        refine_attention_dist = self._refine_post_process(refine_attention_dist, 
-                                                          mark_masked_indices,
-                                                          batch_size, 
-                                                          max_time_steps
-                                                          )
-
-        return refine_logits, refine_attention_dist
+        # (batch_size x (seq_len - 1), seq_len - 1, vocab_len)
+        refined_logits = refined_logits[:, 1:, :]
+        # tile an identity matrix (batch_size*(seq_len - 1), (seq_len - 1))
+        mark_masked_indices = tf.tile(tf.eye(max_time_steps, dtype=tf.bool), [batch_size, 1])
+        # (batch_size x (seq_len - 1), vocab_len)
+        refined_logits = tf.gather_nd(refined_logits, indices=tf.where(mark_masked_indices))
+        # (batch_size, seq_len - 1, vocab_len)
+        refined_logits = tf.reshape(refined_logits, [batch_size, max_time_steps, -1])
+        # (batch_size, 1, vocab_len)
+        cls_logits = tf.tile(tf.one_hot(
+                                    [config.CLS_ID], 
+                                    self.target_vocab_size)[tf.newaxis,:,:], 
+                            [batch_size, 1, 1]
+                            )
+        # (batch_size, seq_len, vocab_len)
+        total_refine_logits = tf.concat([cls_logits, refined_logits], axis=1)
+        # (batch_size, seq_len, vocab_len)
+        return total_refine_logits, refine_attention_dist
 
     def refined_output_sequence_sampling(self,
                                          input_ids, 
@@ -177,11 +131,16 @@ class Bertified_transformer(tf.keras.Model):
                                          top_k,
                                          training=False):
         """
-        Masks each word in the output_sequence draft one by one and
-        then feeds the draft to the pre-trained model to generate context vectors.
+        Inference call, builds a refined output_sequence
+        
+        It first masks each word in the output_sequence draft one by one,
+        then feeds the draft to BERT to generate context vectors.
         """
+        
+        #log.info(f"Building: 'Refined {decoder_type} decoder'")
         dec_input = draft_output_sequence
-        for i in (range(1, config.target_seq_length)):
+        for i in (range(1, config.target_seq_length)):    
+
             # (batch_size, seq_len)
             dec_input = mask_timestamp(dec_input, i, config.MASK_ID)
             _, _, dec_padding_mask = create_masks(input_ids, dec_input)
@@ -210,71 +169,81 @@ class Bertified_transformer(tf.keras.Model):
         # (batch_size, seq_len, vocab_len), (_)        
         return dec_input, attention_dist
 
-    def calculate_returns_and_cosine_similarity(self, logits, target_embeddings, batch_size):
+    def cosine_sim(self, x, y):
 
-        #draft_logits :- (batch_size, cand_seq_len, target_vocab_size)
-        #refine_logits :- (batch_size, cand_seq_len, target_vocab_size)
-        #target_embeddings :- (batch_size, seq_len-1, target_vocab_size)
-        batch_size = 2*batch_size
-        # (2*batch_size*tar_seq_len, target_vocab_size)
-        reshaped_logits = tf.reshape(logits, (-1, config.target_vocab_size))
-        # (2*batch_size*tar_seq_len, 1)
-        select_samples = tf.random.categorical(reshaped_logits, 1, seed=1,dtype=tf.int32)
-        # (2*batch_size, cand_seq_len)
-        sample_returns = tf.reshape(select_samples, (batch_size, -1))
-        # (2*batch_size, tar_seq_len)
+        x = x/(tf.norm(x, axis=-1)[:, :, tf.newaxis])
+        y = y/(tf.norm(y, axis=-1)[:, :, tf.newaxis])
+        output = tf.matmul(x, y, transpose_b=True)
+        scores = tf.transpose(output, (0, 2, 1))
+
+        return scores
+
+    def create_returns_and_greedy_op(self, logits, target_embeddings):
+        # (batch_size, seq_len)
+        batch_size = tf.shape(logits)[0]
         greedy_returns = tf.math.argmax(logits, axis=-1, output_type=tf.int32)
-        # (4*batch_size, tar_seq_len, target_vocab_size)
-        target_embeddings = tf.tile(target_embeddings, [4, 1, 1])
-        # (4*batch_size, cand_seq_len)
-        candidate_returns = tf.concat([sample_returns, greedy_returns], axis=0)
-        # (4*batch_size, cand_seq_len, target_vocab_size)
-        candidate_embeddings = self.decoder_embedding(candidate_returns)
-        # (4*batch_size, tar_seq_len, cand_seq_len)
-        candidate_scores = self._cosine_sim(target_embeddings, candidate_embeddings)
-        
-        return (candidate_returns, candidate_scores, sample_returns)
-        
+        reshaped_logits = tf.reshape(logits, (-1, config.target_vocab_size))
+        select_samples = tf.random.categorical(reshaped_logits, 1, seed=1,dtype=tf.int32)
+        sample_returns = tf.reshape(select_samples, (batch_size, -1))
+        # (batch_size, seq_len, d_bert)
+        sample_return_embeddings = self.decoder_embedding(sample_returns)
+        greedy_return_embeddings = self.decoder_embedding(greedy_returns)
+        sample_returns_scores = self.cosine_sim(target_embeddings,
+                                                sample_return_embeddings
+                                                )
+        greedy_returns_scores = self.cosine_sim(target_embeddings,
+                                                greedy_return_embeddings
+                                               )
+        return (sample_returns_scores, greedy_returns_scores, sample_returns, greedy_returns)
+
     def fit(self, input_ids, target_ids, training, enc_padding_mask, 
-           look_ahead_mask, dec_padding_mask, batch_size):
+           look_ahead_mask, dec_padding_mask):
         
         # (batch_size, seq_len, d_bert)
         enc_output = self.encoder(input_ids)[0]
-        target_embeddings = self.decoder_embedding(target_ids)
+        target_embeddings = self.decoder_embedding(target_ids[:, 1:])
         # (batch_size, seq_len, vocab_len), _
         draft_logits, draft_attention_dist = self.draft_summary(
                                                                 input_ids,
                                                                 enc_output=enc_output,
                                                                 look_ahead_mask=look_ahead_mask,
                                                                 padding_mask=dec_padding_mask,
-                                                                target_embeddings=target_embeddings[:, :-1, :],
+                                                                target_ids=target_ids[:, :-1],
                                                                 training=training
                                                                )
         # (batch_size, seq_len, vocab_len), _
         refine_logits, refine_attention_dist = self.refine_summary(
                                                                 input_ids,
-                                                                batch_size=batch_size,
                                                                 enc_output=enc_output,
                                                                 target=target_ids[:, :-1],            
                                                                 padding_mask=dec_padding_mask,
                                                                 training=training
                                                                 )
-        logits = tf.concat([draft_logits, refine_logits], axis=0)
-        (candidate_returns, 
-         candidate_scores,
-         sample_returns) = self.calculate_returns_and_cosine_similarity(
-                                                            logits, 
-                                                            target_embeddings[:, 1:, :],
-                                                            batch_size
-                                                            )
-
-        return (logits, draft_logits, refine_logits, draft_attention_dist, 
-                refine_attention_dist, 
-                candidate_returns, candidate_scores, sample_returns)
+        (draft_sample_returns_scores,
+        draft_greedy_returns_scores, 
+        draft_sample_returns, 
+        draft_greedy_returns) = self.create_returns_and_greedy_op(draft_logits, target_embeddings)
         
+        (refine_sample_returns_scores,
+        refine_greedy_returns_scores,
+        refine_sample_returns, 
+        refine_greedy_returns) = self.create_returns_and_greedy_op(refine_logits, target_embeddings)
+              
+        return (draft_logits, draft_attention_dist, refine_logits, 
+                refine_attention_dist, draft_sample_returns_scores, 
+                draft_greedy_returns_scores, draft_sample_returns, 
+                draft_greedy_returns, refine_sample_returns_scores, 
+                refine_greedy_returns_scores, refine_sample_returns, 
+                refine_greedy_returns)
+        # return (draft_logits, draft_attention_dist, refine_logits, 
+        #         refine_attention_dist, draft_sample_returns_scores, 
+        #         draft_greedy_returns_scores, draft_sample_returns, 
+        #         draft_greedy_returns, draft_sample_returns_scores, 
+        #         draft_greedy_returns_scores, draft_sample_returns, 
+        #         draft_greedy_returns)
+
     def predict(self,
                input_ids,
-               batch_size,
                draft_decoder_type,
                beam_size,
                length_penalty, 
@@ -284,11 +253,12 @@ class Bertified_transformer(tf.keras.Model):
                refine_decoder_type=config.refine_decoder_type):
 
         # (batch_size, seq_len, d_bert)
+        batch_size = tf.shape(input_ids)[0]
         enc_output = self.encoder(input_ids)[0]
         # (batch_size, seq_len, vocab_len), 
         # ()
         (predicted_draft_output_sequence, 
-          draft_attention_dist) = self.draft_decoder(
+          draft_attention_dist) = draft_decoder(self,
                                                 input_ids,
                                                 enc_output=enc_output,
                                                 beam_size=beam_size,
@@ -315,6 +285,8 @@ class Bertified_transformer(tf.keras.Model):
         return (predicted_draft_output_sequence, draft_attention_dist, 
                predicted_refined_output_sequence, refined_attention_dist)
 
+    
+
     def call(self, input_ids, target_ids, dec_padding_mask, 
                  enc_padding_mask, look_ahead_mask, training,
                  decoder_type=config.draft_decoder_type,
@@ -324,13 +296,11 @@ class Bertified_transformer(tf.keras.Model):
                  top_p=config.top_p,
                  top_k=config.top_k):
 
-        batch_size = tf.shape(input_ids)[0]
         if training is not None:
             return self.fit(input_ids, target_ids, training, enc_padding_mask, 
-                            look_ahead_mask, dec_padding_mask, batch_size)
+                            look_ahead_mask, dec_padding_mask)
         else:
             return self.predict(input_ids,
-                               batch_size=batch_size,
                                draft_decoder_type=decoder_type,
                                beam_size=beam_size,
                                length_penalty=length_penalty,
@@ -352,3 +322,4 @@ if config.print_config:
     if config['add_bias']:
           config['add_bias'] = True
     log.info(f'Configuration used \n {config}')
+    

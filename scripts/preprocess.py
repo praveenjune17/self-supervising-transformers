@@ -147,8 +147,7 @@ def create_dataset(split,
                                  num_parallel_calls=parallel_calls
                                  )
     tf_dataset = tf_dataset.filter(filter_max_length)
-    if config.model == 'bertified_transformer':
-        tf_dataset = tf_dataset.map(tf_pad_encoded_ids)
+    tf_dataset = tf_dataset.map(tf_pad_encoded_ids)
     tf_dataset = tf_dataset.take(num_examples_to_select) 
     tf_dataset = tf_dataset.cache()
     if shuffle:

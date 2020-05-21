@@ -102,7 +102,6 @@ def assert_config_values(config):
 
     available_draft_decoder_types = ['topktopp','greedy', 'only_beam_search']
     available_refine_decoder_types = ['greedy', 'topktopp']
-    available_model_architectures = ['transformer', 'bertified_transformer']
     summarization_datasets = ['cnn_dailymail']
     translate_datasets = ['en_tam_parallel_text']
     implemented_tasks = ['summarize', 'translate']
@@ -118,8 +117,6 @@ def assert_config_values(config):
             f'available draft decoder types are {available_draft_decoder_types}')
     assert config.refine_decoder_type in available_refine_decoder_types, (
         f'available refine decoder types are {available_refine_decoder_types}')
-    assert config.model  in available_model_architectures, (
-            f'available model_architectures are {available_model_architectures}')
     assert len(config.metric_weights) == 2,'Only two metrics are available'
     assert sum(config.metric_weights.values()) == 1, 'weights should sum to 1'
     if config.task == 'summarize':
@@ -132,9 +129,8 @@ def assert_config_values(config):
     elif config.task == 'translate':
         assert config.tfds_name in translate_datasets , (
                 f'{config.tfds_name} not currently added to translate dataset list')
-        if config.model == 'bertified_transformer':
-            assert config.input_pretrained_model != config.target_pretrained_model, (
-                f'For translate the input and target pre-trained BERT must not be same')
+        assert config.input_pretrained_model != config.target_pretrained_model, (
+            f'For translate the input and target pre-trained BERT must not be same')
 
     return config
 
@@ -144,7 +140,6 @@ def check_and_assert_config(config):
     config['bert_score_model'] = 'distilbert-base-multilingual-cased' if config['task'] == 'translate' else 'distilroberta-base'
     config['input_vocab_size'] = source_tokenizer.vocab_size
     config['target_vocab_size'] = target_tokenizer.vocab_size
-    config['num_of_decoders'] = 2 if config.model == 'bertified_transformer' else 1
     # Special Tokens 
     config['PAD_ID']  = target_tokenizer.pad_token_id
     config['CLS_ID']  = target_tokenizer.cls_token_id
@@ -154,8 +149,7 @@ def check_and_assert_config(config):
         config['gradient_accumulation_steps'] = 1
 
     if config.add_bias is not None:
-        if (config.model == 'bertified_transformer'
-        and config.task == 'translate'):
+        if config.task == 'translate':
             assert config.target_language in config.serialized_tensor_path, (
             'serialized Bias file not found,\
             please create it using helper scripts/create_bias script')

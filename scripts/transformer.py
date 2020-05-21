@@ -108,32 +108,6 @@ def point_wise_feed_forward_network(d_model, dff):
                               )
     ])
 
-class EncoderLayer(tf.keras.layers.Layer):
-    def __init__(self, d_model, num_heads, dff, rate=config.dropout_rate):
-        super(EncoderLayer, self).__init__()
-
-        self.mha = MultiHeadAttention(d_model, num_heads)
-        self.ffn = point_wise_feed_forward_network(d_model, dff)
-        self.layernorm1 = tf.keras.layers.LayerNormalization(epsilon=1e-6)
-        self.layernorm2 = tf.keras.layers.LayerNormalization(epsilon=1e-6)
-        self.dropout1 = tf.keras.layers.Dropout(rate, seed=100)
-        self.dropout2 = tf.keras.layers.Dropout(rate, seed=100)
-      
-    def call(self, input_ids, training, mask):
-        # (batch_size, input_seq_len, d_model)
-        
-        attn_output, _ = self.mha(input_ids, input_ids, input_ids, mask)  
-        attn_output = self.dropout1(attn_output, training=training)
-        # (batch_size, input_seq_len, d_model)
-        layer_norm_out1 = self.layernorm1(input_ids + attn_output)  
-        # (batch_size, input_seq_len, d_model)
-        ffn_output = self.ffn(layer_norm_out1)  
-        ffn_output = self.dropout2(ffn_output, training=training)
-        # (batch_size, input_seq_len, d_model)
-        encoder_output = self.layernorm2(layer_norm_out1 + ffn_output)  
-        
-        return encoder_output
-
 class DecoderLayer(tf.keras.layers.Layer):
     def __init__(self, d_model, num_heads, dff, rate=config.dropout_rate):
         super(DecoderLayer, self).__init__()
@@ -151,6 +125,7 @@ class DecoderLayer(tf.keras.layers.Layer):
     def call(self, target_ids, enc_output, training, 
              look_ahead_mask, padding_mask):
       
+        #attn_weights_block1 (batch_size, num_heads, tar_seq_len, tar_seq_len)
         attn1, attn_weights_block1 = self.mha1(target_ids, 
                                                target_ids, 
                                                target_ids, 
@@ -158,6 +133,7 @@ class DecoderLayer(tf.keras.layers.Layer):
                                                )  
         attn1 = self.dropout1(attn1, training=training)
         layer_norm_out1 = self.layernorm1(attn1 + target_ids)
+        #attn_weights_block2 (batch_size, num_heads, tar_seq_len, inp_seq_len)
         attn2, attn_weights_block2 = self.mha2(
                                                enc_output, 
                                                enc_output, 
@@ -174,34 +150,67 @@ class DecoderLayer(tf.keras.layers.Layer):
         decoder_output = self.layernorm3(ffn_output + layer_norm_out2)  
         return (decoder_output, attn_weights_block1, attn_weights_block2)
 
-class Encoder(tf.keras.layers.Layer):
-    def __init__(self, num_layers, d_model, num_heads, dff, input_vocab_size, 
-                 rate=config.dropout_rate):
-        super(Encoder, self).__init__()
+class Pointer_Generator(tf.keras.layers.Layer):
+    
+    def __init__(self):
+        super(Pointer_Generator, self).__init__()
+        self.pointer_generator_layer = tf.keras.layers.Dense(
+                                         1, 
+                                         kernel_regularizer = tf.keras.regularizers.l2(
+                                                                        config.l2_norm
+                                                                        )
+                                         )
+        self.pointer_generator_vector = tf.keras.layers.Activation('sigmoid', 
+                                                            dtype='float32')
+      
+    def call(self, dec_output, final_output, 
+            attention_dist, encoder_input, 
+            input_shape, target_shape, training):
 
-        self.d_model = d_model
-        self.num_layers = num_layers
-        self.encoder_embedding = tf.keras.layers.Embedding(input_vocab_size, 
-                                                            d_model)
-        self.pos_encoding = positional_encoding(input_vocab_size, 
-                                                    self.d_model)
-        self.enc_layers = [EncoderLayer(d_model, num_heads, dff, rate) 
-                           for _ in range(num_layers)]
-        self.dropout = tf.keras.layers.Dropout(rate, seed=100)
-          
-    def call(self, input_ids, training, mask):
-
-        seq_len = tf.shape(input_ids)[1]
-        # (batch_size, input_seq_len, d_model)
-        input_ids = self.encoder_embedding(input_ids)  
-        input_ids *= tf.math.sqrt(tf.cast(self.d_model, tf.float32))  
-        input_ids += self.pos_encoding[:, :seq_len, :]
-        input_ids = self.dropout(input_ids, training=training)
-        #input_ids (batch_size, input_seq_len, d_model)
-        for i in range(self.num_layers):
-          input_ids = self.enc_layers[i](input_ids, training, mask)
-
-        return input_ids
+        batch = tf.shape(encoder_input)[0]
+        # pointer_generator (batch_size, tar_seq_len, 1)
+        pointer_generator = self.pointer_generator_vector(
+                                self.pointer_generator_layer(dec_output)
+                                                         )
+        vocab_dist = tf.math.softmax(final_output, axis=-1)
+        # weighted_vocab_dist (batch_size, tar_seq_len, target_vocab_size)
+        weighted_vocab_dist = pointer_generator * vocab_dist
+        # attention_dist (batch_size, tar_seq_len, inp_seq_len)
+        weighted_attention_dist = (1 - pointer_generator) * attention_dist
+        attention_dist_shape = tf.shape(final_output)
+        # represent the tokens indices in 3D using meshgrid and tile
+        batch_indices, target_indices = tf.meshgrid(tf.range(batch), 
+                                                    tf.range(target_shape), 
+                                                    indexing="ij")
+        tiled_batch_indices = tf.tile(batch_indices[:, :, tf.newaxis], 
+                                      [1, 1, input_shape]
+                                      )
+        tiled_target_indices = tf.tile(target_indices[:, :, tf.newaxis], 
+                                       [1, 1, input_shape]
+                                       )
+        # convert to int32 since they are compatible with scatter_nd
+        encoder_input = tf.cast(encoder_input, dtype=tf.int32)
+        #tile on tar_seq_len so that the input vocab can be copied to output
+        tiled_encoder_input = tf.tile(encoder_input[:, tf.newaxis,: ], 
+                                      [1, target_shape, 1]
+                                      )
+        gather_attention_indices = tf.stack([tiled_batch_indices, 
+                                            tiled_target_indices, 
+                                            tiled_encoder_input
+                                            ], 
+                                            axis=-1
+                                            )
+        # selected_attention_dist (batch_size, tar_seq_len, target_vocab_size)
+        selected_attention_dist = tf.scatter_nd(gather_attention_indices, 
+                                                weighted_attention_dist, 
+                                                attention_dist_shape
+                                                )   
+        total_distribution = weighted_vocab_dist + selected_attention_dist
+        # ensures numerical stability
+        total_distribution = tf.math.maximum(total_distribution, 1e-10)
+        logits = tf.math.log(total_distribution)
+        
+        return logits
 
 class Decoder(tf.keras.layers.Layer):
 
@@ -246,7 +255,10 @@ class Decoder(tf.keras.layers.Layer):
             attention_weights['decoder_layer{}_block2'.format(i+1)] = block2
         
         # take the attention weights of the final layer 
+        # block2_attention_weights (batch_size, num_heads, tar_seq_len, inp_seq_len)
         block2_attention_weights = attention_weights[f'decoder_layer{self.num_layers}_block2']
+        # block2_attention_weights (batch_size, tar_seq_len, inp_seq_len)
+        block2_attention_weights = tf.reduce_mean(block2_attention_weights, axis=1)
         # predictions <- (batch_size, tar_seq_len, target_vocab_size)
         predictions = self.final_layer(target_ids) 
         predictions = self.pointer_generator(
@@ -260,67 +272,3 @@ class Decoder(tf.keras.layers.Layer):
                                             )      if self.pointer_generator  else predictions
         #print(f'block2_attention_weights {tf.shape(block2_attention_weights)}')
         return predictions, block2_attention_weights
-
-class Pointer_Generator(tf.keras.layers.Layer):
-    
-    def __init__(self):
-        super(Pointer_Generator, self).__init__()
-        self.pointer_generator_layer = tf.keras.layers.Dense(
-                                         1, 
-                                         kernel_regularizer = tf.keras.regularizers.l2(
-                                                                        config.l2_norm
-                                                                        )
-                                         )
-        self.pointer_generator_vector = tf.keras.layers.Activation('sigmoid', 
-                                                            dtype='float32')
-      
-    def call(self, dec_output, final_output, 
-            attention_weights, encoder_input, 
-            input_shape, target_shape, training):
-
-        batch = tf.shape(encoder_input)[0]
-        # pointer_generator (batch_size, tar_seq_len, 1)
-        pointer_generator = self.pointer_generator_vector(
-                                self.pointer_generator_layer(dec_output)
-                                                         )
-        vocab_dist = tf.math.softmax(final_output, axis=-1)
-        # weighted_vocab_dist (batch_size, tar_seq_len, target_vocab_size)
-        weighted_vocab_dist = pointer_generator * vocab_dist
-        # attention_weights is 4D so taking mean of the second dimension(i.e num_heads)
-        attention_dist = tf.reduce_mean(attention_weights, axis=1)
-        # attention_dist (batch_size, tar_seq_len, inp_seq_len)
-        weighted_attention_dist = (1 - pointer_generator) * attention_dist
-        attention_dist_shape = tf.shape(final_output)
-        # represent the tokens indices in 3D using meshgrid and tile
-        batch_indices, target_indices = tf.meshgrid(tf.range(batch), 
-                                                    tf.range(target_shape), 
-                                                    indexing="ij")
-        tiled_batch_indices = tf.tile(batch_indices[:, :, tf.newaxis], 
-                                      [1, 1, input_shape]
-                                      )
-        tiled_target_indices = tf.tile(target_indices[:, :, tf.newaxis], 
-                                       [1, 1, input_shape]
-                                       )
-        # convert to int32 since they are compatible with scatter_nd
-        encoder_input = tf.cast(encoder_input, dtype=tf.int32)
-        #tile on tar_seq_len so that the input vocab can be copied to output
-        tiled_encoder_input = tf.tile(encoder_input[:, tf.newaxis,: ], 
-                                      [1, target_shape, 1]
-                                      )
-        gather_attention_indices = tf.stack([tiled_batch_indices, 
-                                            tiled_target_indices, 
-                                            tiled_encoder_input
-                                            ], 
-                                            axis=-1
-                                            )
-        # selected_attention_dist (batch_size, tar_seq_len, target_vocab_size)
-        selected_attention_dist = tf.scatter_nd(gather_attention_indices, 
-                                                weighted_attention_dist, 
-                                                attention_dist_shape
-                                                )   
-        total_distribution = weighted_vocab_dist + selected_attention_dist
-        # ensures numerical stability
-        total_distribution = tf.math.maximum(total_distribution, 1e-10)
-        logits = tf.math.log(total_distribution)
-        
-        return logits

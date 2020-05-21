@@ -10,7 +10,6 @@ import time
 from tqdm import tqdm
 from preprocess import create_dataset
 from configuration import config, source_tokenizer, target_tokenizer
-from calculate_metrics import mask_and_calculate_loss
 from utilities import log
 from model_training_helper import (check_ckpt, eval_step, train_step, batch_run_check, 
                           save_evaluate_monitor)
