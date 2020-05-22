@@ -19,12 +19,14 @@ https://kentonl.com/pub/gltpc.2020.pdf :- salient span masking, focus on problem
 
 Enhance neural network understanding:-
 
+https://arxiv.org/abs/1809.08895 :- text to speech transformer
+								(https://colab.research.google.com/github/as-ideas/TransformerTTS/blob/master/notebooks/synthesize.ipynb)
+https://arxiv.org/pdf/2004.10188.pdf :- energy based models for text 
 https://www.microsoft.com/en-us/research/uploads/prod/2018/02/UniNMT.pdf :- shared vocab bw souce and target sentences
 https://www-nlp.stanford.edu/pubs/clark2019what.pdf :- analyse BERT's attention
 https://arxiv.org/pdf/1906.05909.pdf :- Self-attention in vision
 https://arxiv.org/abs/1911.03584 :- relation bw attention and convolution
 https://arxiv.org/abs/2004.14546 :- train the model to output the explanation after generating the (natural text) prediction.
-https://arxiv.org/pdf/2004.10188.pdf :- energy based models for text 
 https://colinraffel.com/publications/arxiv2020how.pdf :- self-supervised training T5 for QA
 
 Optimize the model:-
@@ -58,9 +60,6 @@ Addtional refine mechanism:-
 ###################################################
 Investigate:-
 	*) does gradient accumulation gets skipped when intefered by validation steps?
-###################################################
-Bugs
-	*) test unified metric. will it be greater than 1?
 ###################################################
 #) Make validation run in another gpu
 #) automatically suggest tokens per batch based on the available GPU memory

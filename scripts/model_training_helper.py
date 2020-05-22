@@ -49,7 +49,7 @@ def train_step(input_ids,
                                                         target_ids[:, :-1]
                                                         )
     with tf.GradientTape() as tape:
-        (logits, draft_logits, refine_logits, draft_attention_weights, 
+        (draft_logits, refine_logits, draft_attention_weights, 
           refine_attention_weights, 
           candidate_returns, candidate_scores, 
           sample_returns) = Model(
@@ -61,8 +61,7 @@ def train_step(input_ids,
                                    training=True,
                                    )
         train_variables = Model.trainable_variables
-        loss, target = loss_function(target_ids, 
-                                     logits,
+        loss, target = loss_function(target_ids,
                                      draft_logits, 
                                      refine_logits,
                                      candidate_returns, 
@@ -147,8 +146,7 @@ def evaluate_validation_set(
                            length_penalty=config.length_penalty,
                            temperature=config.softmax_temperature, 
                            top_p=config.top_p,
-                           top_k=config.top_k,
-                           return_with_attention_weights=False
+                           top_k=config.top_k
                            ):
 
     avg_task_score.reset_states()
@@ -184,16 +182,11 @@ def evaluate_validation_set(
             avg_task_score.update_state(task_score if config.task=='summarize' else task_score/100)
         if bert_f1:
             avg_bert_score.update_state(bert_f1)
-    if return_with_attention_weights:
-        return (avg_task_score.result().numpy(), 
-                avg_bert_score.result().numpy(),
-                draft_attention_weights,
-                refine_attention_weights
-                )  
+
     return (avg_task_score.result().numpy(), 
             avg_bert_score.result().numpy(),
-            None,
-            None
+            draft_attention_weights,
+            refine_attention_weights
             )
 
 def eval_step(input_ids, 
@@ -266,8 +259,8 @@ def batch_run_check(batch, start_time):
 
 def save_evaluate_monitor(ck_pt_mgr, val_dataset, 
             target_tokenizer, predictions, 
-            target_ids, step, start_time,
-            return_attention=False):
+            target_ids, step, start_time
+            ):
 
     ckpt_save_path = ck_pt_mgr.save()
     # print the detokenized training output of a single sample
@@ -281,8 +274,7 @@ def save_evaluate_monitor(ck_pt_mgr, val_dataset,
         draft_attention_weights,
         refine_attention_weights) = evaluate_validation_set(       
                                           val_dataset,
-                                          step,
-                                          return_with_attention_weights=return_attention
+                                          step
                                           )
         early_stop_training = monitor_eval_metrics(
                               ckpt_save_path, 

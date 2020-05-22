@@ -29,7 +29,7 @@ train_dataset = create_dataset(
 ck_pt_mgr = check_ckpt(config.checkpoint_path)
 total_steps = int(config.epochs * (config.gradient_accumulation_steps))
 train_dataset = train_dataset.repeat(total_steps)
-stop_at = 2000
+stop_at = 5000
 
 for (step, (input_ids, target_ids)) in tqdm(enumerate(train_dataset, 1), initial=1):
     start_time = time.time()

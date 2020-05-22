@@ -12,8 +12,7 @@ evaluation_step  = 'Time taken for {} step : {} secs'
 checkpoint_details = 'Saving checkpoint at step {} on {}'
 (_, valid_output_sequence_writer, _) = create_tensorboard_parms()
 aggregated_metric = tf.keras.metrics.Sum(
-                        name='weighted_and_unified_metric_mean', 
-                        dtype=None)
+                        name='weighted_and_unified_metric_mean')
 
 def train_sanity_check(tokenizer, predictions, target_id, log):
     

@@ -145,7 +145,9 @@ def calculate_bert_f1(target_ids, predicted, scores):
     
     return f1_score
 
-def calculate_policy_gradient_loss(predictions, 
+def calculate_policy_gradient_loss(
+                          draft_logits,
+                          refine_logits, 
                           sample_returns, 
                           target_ids,
                           candidate_returns,
@@ -154,11 +156,18 @@ def calculate_policy_gradient_loss(predictions,
                           gamma=config.gamma
                           ):
     
-    sample_return_nll_loss, _ = mask_and_calculate_nll_loss(predictions,
-                                                       sample_returns,
+    (draft_sample_returns, refine_sample_returns) = tf.split(sample_returns, num_or_size_splits=2, axis=0)
+    draft_sample_return_nll_loss, _ = mask_and_calculate_nll_loss(draft_logits,
+                                                       draft_sample_returns,
                                                        config.CLS_ID,
                                                        epsilon=0
                                                       )
+    refine_sample_return_nll_loss, _ = mask_and_calculate_nll_loss(refine_logits,
+                                                       refine_sample_returns,
+                                                       config.CLS_ID,
+                                                       epsilon=0
+                                                      )
+    sample_return_nll_loss = tf.stack([draft_sample_return_nll_loss, refine_sample_return_nll_loss], axis=0)    
     f1_score = calculate_bert_f1(target_ids, candidate_returns, candidate_scores)
     #(2,), (2,)
     sample_bert_f1, greedy_baseline_bert_f1 = tf.split(f1_score, num_or_size_splits=2, axis=0)
@@ -172,7 +181,6 @@ def calculate_policy_gradient_loss(predictions,
 
 
 def loss_function(target_ids, 
-                 logits,
                  draft_logits, 
                  refine_logits,
                  candidate_returns, 
@@ -191,7 +199,9 @@ def loss_function(target_ids,
                                                   )
     target_ids = tf.tile(target_ids[:, :-1], [4, 1])
     loss = tf.stack([draft_loss, refine_loss], axis=0)
-    policy_gradients_loss  = calculate_policy_gradient_loss(logits, 
+    policy_gradients_loss  = calculate_policy_gradient_loss(
+                                                            draft_logits,
+                                                            refine_logits,
                                                             sample_returns, 
                                                             target_ids,
                                                             candidate_returns, 

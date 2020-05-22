@@ -155,11 +155,7 @@ def check_and_assert_config(config):
             please create it using helper scripts/create_bias script')
             config['add_bias'] = load_and_set_bias(config['serialized_tensor_path'])
         else:
-            assert False,(
-            f'add_bias is only available for\n\
-            config.model <- bertified_transformer\n\
-            config.task  <- translate'
-                        )
+            assert False,'add_bias is only available for translate task'
     if config['test_script']:
         config = set_testing_rules(config)
     else:

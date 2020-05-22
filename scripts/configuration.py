@@ -21,7 +21,6 @@ unit_test = {
       'test_script' : False,
       'unit_test_dataset_batch_size' : 1
           }
-
 model_parms = {
      'add_bias' : True,               # set values as True|None Increases the inital bias of Tamil vocabs 
      'activation' : 'relu',
@@ -30,7 +29,6 @@ model_parms = {
      'dff': 1024,                      # feed forward network hidden parameters
      'input_pretrained_model': 'distilroberta-base',  #distilroberta-base, #bert-base-uncased , #google/electra-small-discriminator
      'input_seq_length': 50,
-     'model' : 'bertified_transformer',#bertified_transformer or transformer
      'num_heads': 8,                  # the number of heads in the multi-headed attention unit
      'num_layers': 8,                 # number of transformer blocks
      'num_of_decoders_added' : 2, 
@@ -41,14 +39,13 @@ model_parms = {
      'target_seq_length': 20,
      'task':'translate'            # must be translate or summarize
      }
-
 training_parms = {
      'accumulate_gradients' : True,
      'display_model_summary' : True,
      'early_stop' : False,
      'enable_jit' : True,                    # disabled for windows automatically
      'eval_after_steps' : 5000,              # Evaluate after these many training steps
-     'gamma' : 0.9984,
+     'gamma' : 0.0,
      'gradient_accumulation_steps': 18,   
      'last_recorded_value': 0.5459,
      'min_train_loss' : 1.0,
@@ -65,8 +62,7 @@ training_parms = {
      'use_custom_tokenizer' : None,
      'use_tfds' : True,                 # use tfds datasets as to train the model else use the given csv file
      'write_batch1_predictions': True           # write the first batch of validation set summary to a file
-     }                                    
-
+     }
 inference_decoder_parms = {
     'beam_size': 1,              
     'draft_decoder_type' : 'greedy',     # 'greedy', 'only_beam_search', 'topktopp' --> topktopp filtering + beam search
@@ -77,7 +73,6 @@ inference_decoder_parms = {
     'top_p' : 1, 
     'top_k' : 0                         
     }
-
 h_parms = {
    'metric_weights': {'bert_f1_score':0.8, 'task_score':0.2}, #(task_score <- rouge if summarize else bleu)
    'dropout_rate': 0.1,
@@ -89,9 +84,8 @@ h_parms = {
    'train_batch_size': 2,
    'validation_batch_size' : 32
    }                                    
-
 dataset_name = training_parms['tfds_name']
-model = model_parms['model']
+model = 'bertified_transformer'
 core_path = os.getcwd()
 path_seperator,  training_parms['enable_jit'] = ('\\', False) if platform.system() == 'Windows' else ('/', True)
 file_path = {
@@ -110,12 +104,10 @@ file_path = {
         'tfds_data_version' : None,
         'train_csv_path' : None
             }
-
 config = Bunch(model_parms)
 config.update(unit_test)
 config.update(training_parms)
 config.update(inference_decoder_parms)
 config.update(h_parms)
 config.update(file_path)
-
 config, source_tokenizer, target_tokenizer = check_and_assert_config(config)

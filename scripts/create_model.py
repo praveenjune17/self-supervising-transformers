@@ -219,7 +219,7 @@ class Bertified_transformer(tf.keras.Model):
         # (2*batch_size*tar_seq_len, target_vocab_size)
         reshaped_logits = tf.reshape(logits, (-1, config.target_vocab_size))
         # (2*batch_size*tar_seq_len, 1)
-        select_samples = tf.random.categorical(reshaped_logits, 1, seed=1,dtype=tf.int32)
+        select_samples = tf.stop_gradient(tf.random.categorical(reshaped_logits, 1, seed=1,dtype=tf.int32))
         # (2*batch_size, cand_seq_len)
         sample_returns = tf.reshape(select_samples, (batch_size, -1))
         # (2*batch_size, tar_seq_len)
@@ -268,9 +268,9 @@ class Bertified_transformer(tf.keras.Model):
                                                             batch_size
                                                             )
 
-        return (logits, draft_logits, refine_logits, draft_attention_dist, 
-                refine_attention_dist, 
-                candidate_returns, candidate_scores, sample_returns)
+        return (draft_logits, refine_logits, draft_attention_dist, 
+                refine_attention_dist, candidate_returns, 
+                candidate_scores, sample_returns)
         
     def predict(self,
                input_ids,
