@@ -4,6 +4,7 @@ import tensorflow as tf
 import numpy as np
 from rouge import Rouge
 from bert_score import score as b_score
+from create_model import Model
 from official.nlp.transformer import compute_bleu
 from configuration import config, source_tokenizer, target_tokenizer
 from utilities import log
@@ -86,7 +87,6 @@ class CustomSchedule(tf.keras.optimizers.schedules.LearningRateSchedule):
 
       return tf.math.rsqrt(self.d_model) * tf.math.minimum(arg1, arg2)
 
-
 def label_smoothing(inputs, epsilon):
     # V <- number of channels
     V = inputs.get_shape().as_list()[-1] 
@@ -125,9 +125,16 @@ def mask_and_calculate_nll_loss(predictions,
 
     return loss, target_ids_3D
 
-def calculate_bert_f1(target_ids, predicted, scores):
-    
-    batch_size = (tf.shape(target_ids)[0]/4)
+
+def calculate_bert_f1(target_ids, predicted):
+    # (4*batch_size, tar_seq_len, target_vocab_size)
+    target_embeddings = Model.decoder_embedding(target_ids)
+    # (4*batch_size, cand_seq_len, target_vocab_size)
+    candidate_embeddings = Model.decoder_embedding(predicted)
+    target_embeddings_normalized = target_embeddings/(tf.norm(target_embeddings, axis=-1)[:, :, tf.newaxis])
+    candidate_embeddings_normalized = candidate_embeddings/(tf.norm(candidate_embeddings, axis=-1)[:, :, tf.newaxis])
+    # (4*batch_size, tar_seq_len, cand_seq_len)
+    scores = tf.matmul(candidate_embeddings_normalized, target_embeddings_normalized, transpose_b=True)
     target_mask = create_mask(target_ids, scores)
     predicted_return_mask = create_mask(predicted, scores)
     mask = tf.matmul(predicted_return_mask[:, :, tf.newaxis], target_mask[:, tf.newaxis,: ])
@@ -138,10 +145,7 @@ def calculate_bert_f1(target_ids, predicted, scores):
     precision = tf.reduce_sum(precision, 1)
     recall = recall/tf.reduce_sum(target_mask, -1)
     precision = precision/tf.reduce_sum(predicted_return_mask, -1)
-    # (4*batch_size,)
     f1_score = (2*(precision*recall))/(precision+recall)
-    f1_score = tf.reshape(f1_score, (batch_size, -1))
-    f1_score = tf.reduce_mean(f1_score, axis=0)
     
     return f1_score
 
@@ -151,11 +155,11 @@ def calculate_policy_gradient_loss(
                           sample_returns, 
                           target_ids,
                           candidate_returns,
-                          candidate_scores,
                           nll_loss,
                           gamma=config.gamma
                           ):
     
+    actual_batch_size = tf.shape(target_ids)[0]/4
     (draft_sample_returns, refine_sample_returns) = tf.split(sample_returns, num_or_size_splits=2, axis=0)
     draft_sample_return_nll_loss, _ = mask_and_calculate_nll_loss(draft_logits,
                                                        draft_sample_returns,
@@ -167,24 +171,28 @@ def calculate_policy_gradient_loss(
                                                        config.CLS_ID,
                                                        epsilon=0
                                                       )
+    # log probability of the actions(all the tokens in the vocab)
     sample_return_nll_loss = tf.stack([draft_sample_return_nll_loss, refine_sample_return_nll_loss], axis=0)    
-    f1_score = calculate_bert_f1(target_ids, candidate_returns, candidate_scores)
+    bert_f1_score = calculate_bert_f1(target_ids, candidate_returns)
+    bert_f1_score = tf.reshape(bert_f1_score, (actual_batch_size, -1))
+    bert_f1_score = tf.reduce_mean(bert_f1_score, axis=0)
     #(2,), (2,)
-    sample_bert_f1, greedy_baseline_bert_f1 = tf.split(f1_score, num_or_size_splits=2, axis=0)
+    sample_bert_f1, greedy_baseline_bert_f1 = tf.split(bert_f1_score, num_or_size_splits=2, axis=0)
     #(2,)
     pg_loss_with_baseline = (sample_bert_f1 - greedy_baseline_bert_f1)*sample_return_nll_loss
     #(2,)
     loss_with_pg = (1-gamma)*nll_loss + (gamma * pg_loss_with_baseline)
     loss_with_pg = tf.reduce_sum(loss_with_pg)
+    # includes both draft and refine argmax predicted ids
+    bert_f1_score = tf.reduce_mean(greedy_baseline_bert_f1)
 
-    return loss_with_pg
+    return (loss_with_pg, bert_f1_score)
 
 
 def loss_function(target_ids, 
                  draft_logits, 
                  refine_logits,
                  candidate_returns, 
-                 candidate_scores,
                  sample_returns):
 
     draft_loss, _ = mask_and_calculate_nll_loss(
@@ -197,19 +205,19 @@ def loss_function(target_ids,
                                                   target_ids[:, :-1],
                                                   config.CLS_ID
                                                   )
-    target_ids = tf.tile(target_ids[:, :-1], [4, 1])
+    #calculate_bert_f1(target_ids[:, :-1], predicted)
     loss = tf.stack([draft_loss, refine_loss], axis=0)
-    policy_gradients_loss  = calculate_policy_gradient_loss(
+    target_ids = tf.tile(target_ids[:, 1:], [4, 1])
+    policy_gradients_loss, bert_f1_score  = calculate_policy_gradient_loss(
                                                             draft_logits,
                                                             refine_logits,
                                                             sample_returns, 
                                                             target_ids,
                                                             candidate_returns, 
-                                                            candidate_scores,
                                                             loss
                                                             )
 
-    return (policy_gradients_loss, refine_target)
+    return (policy_gradients_loss, bert_f1_score)
     
 def get_loss_and_accuracy():
 

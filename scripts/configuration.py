@@ -45,7 +45,7 @@ training_parms = {
      'early_stop' : False,
      'enable_jit' : True,                    # disabled for windows automatically
      'eval_after_steps' : 5000,              # Evaluate after these many training steps
-     'gamma' : 0.0,
+     'gamma' : 0.9984,
      'gradient_accumulation_steps': 18,   
      'last_recorded_value': 0.5459,
      'min_train_loss' : 1.0,

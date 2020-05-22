@@ -1,0 +1,38 @@
+Electra:-
+	generator is non-autogregressive:-
+		a) to generate fake data it samples and takes argmax from the distribution:-
+			sampled_tokens = tf.stop_gradient(pretrain_helpers.sample_from_softmax(
+		        mlm_logits / self._config.temperature, disallow=disallow))
+		    sampled_tokids = tf.argmax(sampled_tokens, -1, output_type=tf.int32)
+    *) models work best with generators 1/4-1/2 the size of the discriminator
+	*) binary classifier Loss calculation using:- _get_discriminator_output(fake_data.inputs, discriminator, fake_data.is_fake_tokens)
+	*) parameter size < parameter size of Discriminator
+	*) share positional and token embeddings bw generator and discriminator
+		*) Increase the Discriminator's embedding by using a linear layer 
+			eg:-
+				*) if embedding op size of generator, emb_g =  (batch, 256)
+				*) if embedding size of discriminator is, emb_d = (batch, 768)
+				*) if sharable embedding size, emb_sh = (batch, 256) (trainable)
+				*) adjusted embedding size of discriminator, emb_d = emb_sh(dense_layer) = (batch, 768)
+					where dense_layer = (256, 768)
+	*) loss = MLM + DISC
+        
+
+Generator:-
+	c) Input tokens are ingested  
+        d) few of the input tokens are masked
+        e) trained to predict the mask tokens. (Just like BERT) (creating Fake samples)
+	*) if the generator happens to generate the correct token, that token is considered “real” instead of “fak
+        
+
+example
+	f) "This   is praveen from   chennai"   
+	g) "[MASK] is praveen [MASK] chennai"   :- groud truth for prediction :- This vs He and from vs in 
+	h) "    He is praveen from     chennai" :- Fake sample:- 'He'; Real sample:- 'from'
+
+
+Discriminator:-
+    i) Fake tokens from generator are ingested
+	j)      [0  1  1        0     1]         :- ground truth for discriminator
+	k) Train the discriminator to predict which tokens in fake samples (h) 	match the ground truth
+

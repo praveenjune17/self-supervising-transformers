@@ -5,7 +5,7 @@ from utilities import create_tensorboard_parms
 
 model_metrics = 'Step {},\n\
                  Train Loss {:.4f},\n\
-                 Train_Accuracy {:.4f},\n\
+                 BERT_F1 {:.4f},\n\
                  {} {:4f},\n\
                  BERT_f1 {:4f}\n'   
 evaluation_step  = 'Time taken for {} step : {} secs' 

@@ -55,9 +55,10 @@ class Bertified_transformer(tf.keras.Model):
                       enc_output,
                       look_ahead_mask,
                       padding_mask,
-                      target_embeddings,
+                      target_ids,
                       training):
 
+        target_embeddings = self.decoder_embedding(target_ids)
         # draft_logits:-         (batch_size, tar_seq_len, tar_vocab_size)   
         # draft_attention_dist:- (batch_size, tar_seq_len, inp_seq_len)        
         draft_logits, draft_attention_dist = self.decoder(
@@ -70,14 +71,6 @@ class Bertified_transformer(tf.keras.Model):
                                                           )
         # (batch_size, tar_seq_len, tar_vocab_size)
         return draft_logits, draft_attention_dist
-
-    def _cosine_sim(self, x, y):
-
-        x = x/(tf.norm(x, axis=-1)[:, :, tf.newaxis])
-        y = y/(tf.norm(y, axis=-1)[:, :, tf.newaxis])
-        scores = tf.matmul(y, x, transpose_b=True)
-        
-        return scores
 
     def _refine_pre_process(self, target, input_ids, enc_output, padding_mask, batch_size, max_time_steps):
 
@@ -210,44 +203,36 @@ class Bertified_transformer(tf.keras.Model):
         # (batch_size, seq_len, vocab_len), (_)        
         return dec_input, attention_dist
 
-    def calculate_returns_and_cosine_similarity(self, logits, target_embeddings, batch_size):
+    def _calculate_sample_returns(self, draft_logits, refine_logits, batch_size):
 
-        #draft_logits :- (batch_size, cand_seq_len, target_vocab_size)
-        #refine_logits :- (batch_size, cand_seq_len, target_vocab_size)
-        #target_embeddings :- (batch_size, seq_len-1, target_vocab_size)
+        logits = tf.concat([draft_logits, refine_logits], axis=0)
+        #logits :- (2*batch_size, cand_seq_len, target_vocab_size)
         batch_size = 2*batch_size
         # (2*batch_size*tar_seq_len, target_vocab_size)
         reshaped_logits = tf.reshape(logits, (-1, config.target_vocab_size))
         # (2*batch_size*tar_seq_len, 1)
-        select_samples = tf.stop_gradient(tf.random.categorical(reshaped_logits, 1, seed=1,dtype=tf.int32))
+        select_samples = tf.random.categorical(reshaped_logits, 1, seed=1,dtype=tf.int32)
         # (2*batch_size, cand_seq_len)
         sample_returns = tf.reshape(select_samples, (batch_size, -1))
         # (2*batch_size, tar_seq_len)
         greedy_returns = tf.math.argmax(logits, axis=-1, output_type=tf.int32)
-        # (4*batch_size, tar_seq_len, target_vocab_size)
-        target_embeddings = tf.tile(target_embeddings, [4, 1, 1])
         # (4*batch_size, cand_seq_len)
         candidate_returns = tf.concat([sample_returns, greedy_returns], axis=0)
-        # (4*batch_size, cand_seq_len, target_vocab_size)
-        candidate_embeddings = self.decoder_embedding(candidate_returns)
-        # (4*batch_size, tar_seq_len, cand_seq_len)
-        candidate_scores = self._cosine_sim(target_embeddings, candidate_embeddings)
         
-        return (candidate_returns, candidate_scores, sample_returns)
+        return (candidate_returns, sample_returns)
         
     def fit(self, input_ids, target_ids, training, enc_padding_mask, 
            look_ahead_mask, dec_padding_mask, batch_size):
         
         # (batch_size, seq_len, d_bert)
         enc_output = self.encoder(input_ids)[0]
-        target_embeddings = self.decoder_embedding(target_ids)
         # (batch_size, seq_len, vocab_len), _
         draft_logits, draft_attention_dist = self.draft_summary(
                                                                 input_ids,
                                                                 enc_output=enc_output,
                                                                 look_ahead_mask=look_ahead_mask,
                                                                 padding_mask=dec_padding_mask,
-                                                                target_embeddings=target_embeddings[:, :-1, :],
+                                                                target_ids=target_ids[:, :-1],
                                                                 training=training
                                                                )
         # (batch_size, seq_len, vocab_len), _
@@ -259,18 +244,15 @@ class Bertified_transformer(tf.keras.Model):
                                                                 padding_mask=dec_padding_mask,
                                                                 training=training
                                                                 )
-        logits = tf.concat([draft_logits, refine_logits], axis=0)
-        (candidate_returns, 
-         candidate_scores,
-         sample_returns) = self.calculate_returns_and_cosine_similarity(
-                                                            logits, 
-                                                            target_embeddings[:, 1:, :],
-                                                            batch_size
-                                                            )
+        
+        candidate_returns, sample_returns = self._calculate_sample_returns(
+                                                          draft_logits,
+                                                          refine_logits, 
+                                                          batch_size
+                                                          )
 
         return (draft_logits, refine_logits, draft_attention_dist, 
-                refine_attention_dist, candidate_returns, 
-                candidate_scores, sample_returns)
+                refine_attention_dist, candidate_returns, sample_returns)
         
     def predict(self,
                input_ids,

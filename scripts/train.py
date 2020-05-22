@@ -52,7 +52,8 @@ try:
         if (step % config.steps_to_print_training_info) == 0:
             batch_run_check(
                             step,  
-                            start_time
+                            start_time,
+                            bert_f1_score
                             )
         if (step % config.eval_after_steps) == 0:
             (early_stop,
@@ -60,7 +61,7 @@ try:
             refine_attention_weights) = save_evaluate_monitor(ck_pt_mgr, val_dataset, 
                                                     target_tokenizer, predictions, 
                                                     target_ids, step, start_time,
-                                                    return_attention=True
+                                                    bert_f1_score
                                                     )
             if early_stop:
                 break

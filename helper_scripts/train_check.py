@@ -34,7 +34,7 @@ stop_at = 5000
 for (step, (input_ids, target_ids)) in tqdm(enumerate(train_dataset, 1), initial=1):
     start_time = time.time()
     grad_accum_flag = (True if (step%config.gradient_accumulation_steps) == 0 else False) if config.accumulate_gradients else None
-    predictions = train_step(
+    predictions, bert_f1_score = train_step(
                             input_ids,  
                             target_ids,
                             grad_accum_flag
@@ -42,7 +42,8 @@ for (step, (input_ids, target_ids)) in tqdm(enumerate(train_dataset, 1), initial
     if (step % config.steps_to_print_training_info) == 0:
         train_loss = batch_run_check(
                                   step,  
-                                  start_time
+                                  start_time,
+                                  bert_f1_score
                                   )
         train_sanity_check(target_tokenizer, predictions, target_ids, log)
     if (step % stop_at) == 0:

@@ -23,7 +23,7 @@ optimizer = mixed_precision.LossScaleOptimizer(optimizer, loss_scale='dynamic')
 avg_task_score = tf.keras.metrics.Mean(name='avg_task_score')
 avg_bert_score = tf.keras.metrics.Mean(name='bert_f1_mean')
 batch_zero = 'Time taken to feed the input data to the model {} seconds'
-batch_run_details = 'Train_Loss {:.4f} Train_Accuracy {:.4f}'
+batch_run_details = 'Train_Loss {:.4f} BERT_f1_score {:.4f}'
 gradient_accumulators = []
 
 train_step_signature = [
@@ -51,7 +51,7 @@ def train_step(input_ids,
     with tf.GradientTape() as tape:
         (draft_logits, refine_logits, draft_attention_weights, 
           refine_attention_weights, 
-          candidate_returns, candidate_scores, 
+          candidate_returns,  
           sample_returns) = Model(
                                    input_ids,
                                    dec_padding_mask=dec_padding_mask,
@@ -61,11 +61,10 @@ def train_step(input_ids,
                                    training=True,
                                    )
         train_variables = Model.trainable_variables
-        loss, target = loss_function(target_ids,
+        loss, bert_f1_score = loss_function(target_ids,
                                      draft_logits, 
                                      refine_logits,
-                                     candidate_returns, 
-                                     candidate_scores,
+                                     candidate_returns,
                                      sample_returns
                                      )
         regularization_loss = tf.add_n(Model.losses)
@@ -88,13 +87,13 @@ def train_step(input_ids,
             for accumulator in (gradient_accumulators):
                 accumulator.assign(tf.zeros_like(accumulator))
             train_loss(loss)
-            train_accuracy(target, refine_logits)
+            #train_accuracy(target, refine_logits)
     else:
         optimizer.apply_gradients(zip(gradients, train_variables))
         train_loss(loss)
-        train_accuracy(target, refine_logits)
+        #train_accuracy(target, refine_logits)
 
-    return refine_logits
+    return refine_logits, bert_f1_score
 
 #@tf.function(input_signature=val_step_signature) #slow with tf.function
 def val_step(
@@ -236,12 +235,12 @@ def check_ckpt(checkpoint_path):
 
     return ckpt_manager
 
-def batch_run_check(batch, start_time):
+def batch_run_check(batch, start_time, bert_f1_score):
 
     if config.run_tensorboard:
         with train_output_sequence_writer.as_default():
           tf.summary.scalar('train_loss', train_loss.result(), step=batch)
-          tf.summary.scalar('train_accuracy', train_accuracy.result(), step=batch)
+          tf.summary.scalar('bert_f1_score', bert_f1_score.numpy(), step=batch)
     if config.display_model_summary:
         log.info(Model.summary())
         log.info(batch_zero.format(time.time()-start_time))
@@ -253,13 +252,13 @@ def batch_run_check(batch, start_time):
                                                  message="NaN's or Inf's.", 
                                                  name='NAN_assertion'
                                                 ), 
-                                     train_accuracy.result()
+                                     bert_f1_score.numpy()
                                      )
             )
 
 def save_evaluate_monitor(ck_pt_mgr, val_dataset, 
             target_tokenizer, predictions, 
-            target_ids, step, start_time
+            target_ids, step, start_time, bert_f1_score
             ):
 
     ckpt_save_path = ck_pt_mgr.save()
@@ -294,7 +293,7 @@ def save_evaluate_monitor(ck_pt_mgr, val_dataset,
     training_results(
                       step,
                       train_loss.result(), 
-                      train_accuracy.result(), 
+                      bert_f1_score.numpy(), 
                       task_score, 
                       bert_score,
                       (time.time() - start_time),
@@ -303,7 +302,7 @@ def save_evaluate_monitor(ck_pt_mgr, val_dataset,
                       config
                       )
     train_loss.reset_states()
-    train_accuracy.reset_states()
+    #train_accuracy.reset_states()
     
     return (early_stop_training,
             draft_attention_weights,
