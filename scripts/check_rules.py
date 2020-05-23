@@ -137,7 +137,7 @@ def assert_config_values(config):
 def check_and_assert_config(config):
 
     config, source_tokenizer, target_tokenizer = create_tokenizer(config)
-    config['bert_score_model'] = 'distilbert-base-multilingual-cased' if config['task'] == 'translate' else 'distilroberta-base'
+    config['bert_score_model'] = config['target_pretrained_model'] if config['task'] == 'translate' else config['input_pretrained_model']
     config['input_vocab_size'] = source_tokenizer.vocab_size
     config['target_vocab_size'] = target_tokenizer.vocab_size
     # Special Tokens 

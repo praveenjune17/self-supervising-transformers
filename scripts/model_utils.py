@@ -79,6 +79,18 @@ def positional_encoding(position, d_model):
 
     return tf.cast(pos_encoding, dtype=tf.float32)
 
+def create_pretrained_model_mask(ids, 
+                mask_a_with=config.CLS_ID, 
+                mask_b_with=config.PAD_ID
+                ):
+      
+    mask = tf.math.logical_not(tf.math.logical_or(
+                                  tf.math.equal(ids, mask_a_with), 
+                                  tf.math.equal(ids, mask_b_with))
+                               )
+    mask = tf.cast(mask, dtype=tf.float32)
+
+    return mask
 
 def create_padding_mask(seq):
     '''The mask indicates where pad value 0 is present.

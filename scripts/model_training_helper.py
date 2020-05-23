@@ -44,7 +44,7 @@ def train_step(input_ids,
                target_ids,
                grad_accum_flag):
     
-    enc_padding_mask, combined_mask, dec_padding_mask = create_masks(
+    _, combined_mask, dec_padding_mask = create_masks(
                                                         input_ids, 
                                                         target_ids[:, :-1]
                                                         )
@@ -56,7 +56,6 @@ def train_step(input_ids,
                                    input_ids,
                                    dec_padding_mask=dec_padding_mask,
                                    target_ids=target_ids,
-                                   enc_padding_mask=enc_padding_mask, 
                                    look_ahead_mask=combined_mask, 
                                    training=True,
                                    )

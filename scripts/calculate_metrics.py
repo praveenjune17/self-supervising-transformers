@@ -5,6 +5,7 @@ import numpy as np
 from rouge import Rouge
 from bert_score import score as b_score
 from create_model import Model
+from model_utils import create_pretrained_model_mask
 from official.nlp.transformer import compute_bleu
 from configuration import config, source_tokenizer, target_tokenizer
 from utilities import log
@@ -95,19 +96,6 @@ def label_smoothing(inputs, epsilon):
 
     return ((1-epsilon) * inputs) + (epsilon / V)
 
-def create_mask(ids, 
-                scores, 
-                mask_a_with=config.CLS_ID, 
-                mask_b_with=config.PAD_ID
-                ):
-      
-    mask = tf.math.logical_not(tf.math.logical_or(
-                                  tf.math.equal(ids, mask_a_with), 
-                                  tf.math.equal(ids, mask_b_with))
-                               )
-    mask = tf.cast(mask, dtype=scores.dtype)
-
-    return mask
 # nll :- negative_log_liklihood
 def mask_and_calculate_nll_loss(predictions, 
                             target_ids, 
@@ -119,7 +107,7 @@ def mask_and_calculate_nll_loss(predictions,
     
     target_ids_3D = label_smoothing(tf.one_hot(target_ids, depth=config.target_vocab_size), epsilon)
     loss = negative_log_liklihood(target_ids_3D, predictions)
-    mask = create_mask(target_ids, loss, mask_a_with, mask_b_with)
+    mask = create_pretrained_model_mask(target_ids, mask_a_with, mask_b_with)
     loss = loss * mask
     loss = tf.reduce_sum(loss)/tf.reduce_sum(mask)
 
@@ -127,16 +115,17 @@ def mask_and_calculate_nll_loss(predictions,
 
 
 def calculate_bert_f1(target_ids, predicted):
+
+    target_mask = create_pretrained_model_mask(target_ids)
+    predicted_return_mask = create_pretrained_model_mask(predicted)
     # (4*batch_size, tar_seq_len, target_vocab_size)
-    target_embeddings = Model.decoder_embedding(target_ids)
+    target_embeddings = Model.decoder_bert_model(target_ids, attention_mask=target_mask)[0]
     # (4*batch_size, cand_seq_len, target_vocab_size)
-    candidate_embeddings = Model.decoder_embedding(predicted)
+    predicted_embeddings = Model.decoder_bert_model(predicted, attention_mask=predicted_return_mask)[0]
     target_embeddings_normalized = target_embeddings/(tf.norm(target_embeddings, axis=-1)[:, :, tf.newaxis])
-    candidate_embeddings_normalized = candidate_embeddings/(tf.norm(candidate_embeddings, axis=-1)[:, :, tf.newaxis])
+    predicted_embeddings_normalized = predicted_embeddings/(tf.norm(predicted_embeddings, axis=-1)[:, :, tf.newaxis])
     # (4*batch_size, tar_seq_len, cand_seq_len)
-    scores = tf.matmul(candidate_embeddings_normalized, target_embeddings_normalized, transpose_b=True)
-    target_mask = create_mask(target_ids, scores)
-    predicted_return_mask = create_mask(predicted, scores)
+    scores = tf.matmul(predicted_embeddings_normalized, target_embeddings_normalized, transpose_b=True)
     mask = tf.matmul(predicted_return_mask[:, :, tf.newaxis], target_mask[:, tf.newaxis,: ])
     scores = scores*mask
     recall = tf.reduce_max(scores, 1)
@@ -184,9 +173,9 @@ def calculate_policy_gradient_loss(
     loss_with_pg = (1-gamma)*nll_loss + (gamma * pg_loss_with_baseline)
     loss_with_pg = tf.reduce_sum(loss_with_pg)
     # includes both draft and refine argmax predicted ids
-    bert_f1_score = tf.reduce_mean(greedy_baseline_bert_f1)
+    baseline_bert_f1_score = tf.reduce_mean(greedy_baseline_bert_f1)    
 
-    return (loss_with_pg, bert_f1_score)
+    return (loss_with_pg, baseline_bert_f1_score)
 
 
 def loss_function(target_ids, 

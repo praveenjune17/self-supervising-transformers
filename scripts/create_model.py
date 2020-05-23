@@ -13,9 +13,12 @@ def _embedding_from_bert():
         input_pretrained_bert = TFAutoModel.from_pretrained(config.input_pretrained_model, 
                                               trainable=False, 
                                               name=config.input_pretrained_model)
-        target_pretrained_bert = TFAutoModel.from_pretrained(config.target_pretrained_model, 
-                                              trainable=False, 
-                                              name=config.target_pretrained_model)
+        
+        target_pretrained_bert = TFAutoModel.from_pretrained(
+                                    config.target_pretrained_model, 
+                                    trainable=False, 
+                                    name=config.target_pretrained_model
+                                    ) if config['task'] == 'translate' else input_pretrained_bert
     decoder_embedding = target_pretrained_bert.get_weights()[0]
     log.info(f"Decoder_Embedding matrix shape '{decoder_embedding.shape}'")
 
@@ -211,7 +214,7 @@ class Bertified_transformer(tf.keras.Model):
         # (2*batch_size*tar_seq_len, target_vocab_size)
         reshaped_logits = tf.reshape(logits, (-1, config.target_vocab_size))
         # (2*batch_size*tar_seq_len, 1)
-        select_samples = tf.random.categorical(reshaped_logits, 1, seed=1,dtype=tf.int32)
+        select_samples = tf.random.categorical(reshaped_logits, 1, seed=1, dtype=tf.int32)
         # (2*batch_size, cand_seq_len)
         sample_returns = tf.reshape(select_samples, (batch_size, -1))
         # (2*batch_size, tar_seq_len)
@@ -221,10 +224,9 @@ class Bertified_transformer(tf.keras.Model):
         
         return (candidate_returns, sample_returns)
         
-    def fit(self, input_ids, target_ids, training, enc_padding_mask, 
+    def fit(self, input_ids, target_ids, training,
            look_ahead_mask, dec_padding_mask, batch_size):
         
-        # (batch_size, seq_len, d_bert)
         enc_output = self.encoder(input_ids)[0]
         # (batch_size, seq_len, vocab_len), _
         draft_logits, draft_attention_dist = self.draft_summary(
@@ -298,7 +300,7 @@ class Bertified_transformer(tf.keras.Model):
                predicted_refined_output_sequence, refined_attention_dist)
 
     def call(self, input_ids, target_ids, dec_padding_mask, 
-                 enc_padding_mask, look_ahead_mask, training,
+                 look_ahead_mask, training,
                  decoder_type=config.draft_decoder_type,
                  beam_size=config.beam_size,
                  length_penalty=config.length_penalty,
@@ -308,7 +310,7 @@ class Bertified_transformer(tf.keras.Model):
 
         batch_size = tf.shape(input_ids)[0]
         if training is not None:
-            return self.fit(input_ids, target_ids, training, enc_padding_mask, 
+            return self.fit(input_ids, target_ids, training, 
                             look_ahead_mask, dec_padding_mask, batch_size)
         else:
             return self.predict(input_ids,
