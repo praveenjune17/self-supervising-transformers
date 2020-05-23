@@ -163,7 +163,10 @@ def calculate_policy_gradient_loss(
     # log probability of the actions(all the tokens in the vocab)
     sample_return_nll_loss = tf.stack([draft_sample_return_nll_loss, refine_sample_return_nll_loss], axis=0)    
     bert_f1_score = calculate_bert_f1(target_ids, candidate_returns)
-    bert_f1_score = tf.reshape(bert_f1_score, (actual_batch_size, -1))
+    combined_bert_f1_score = tf.reduce_mean(bert_f1_score)
+    # reshape by the actual batch size .i.e reshape the way it was before tiling it by 4
+    bert_f1_score = tf.reshape(bert_f1_score, (actual_batch_size, 4))
+    # avg across the batch
     bert_f1_score = tf.reduce_mean(bert_f1_score, axis=0)
     #(2,), (2,)
     sample_bert_f1, greedy_baseline_bert_f1 = tf.split(bert_f1_score, num_or_size_splits=2, axis=0)
@@ -172,10 +175,8 @@ def calculate_policy_gradient_loss(
     #(2,)
     loss_with_pg = (1-gamma)*nll_loss + (gamma * pg_loss_with_baseline)
     loss_with_pg = tf.reduce_sum(loss_with_pg)
-    # includes both draft and refine argmax predicted ids
-    baseline_bert_f1_score = tf.reduce_mean(greedy_baseline_bert_f1)    
 
-    return (loss_with_pg, baseline_bert_f1_score)
+    return (loss_with_pg, combined_bert_f1_score)
 
 
 def loss_function(target_ids, 
@@ -194,7 +195,6 @@ def loss_function(target_ids,
                                                   target_ids[:, :-1],
                                                   config.CLS_ID
                                                   )
-    #calculate_bert_f1(target_ids[:, :-1], predicted)
     loss = tf.stack([draft_loss, refine_loss], axis=0)
     target_ids = tf.tile(target_ids[:, 1:], [4, 1])
     policy_gradients_loss, bert_f1_score  = calculate_policy_gradient_loss(
