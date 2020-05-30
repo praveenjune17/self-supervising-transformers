@@ -14,63 +14,6 @@ negative_log_liklihood = tf.keras.losses.CategoricalCrossentropy(
                                                       from_logits=True, 
                                                       reduction='none'
                                                       )
-class evaluation_metrics:
-
-    def __init__(self, true_output_sequences, predicted_output_sequences, task=config.task):
-        self.ref_sents = true_output_sequences
-        self.hyp_sents = predicted_output_sequences
-        self.calculate_rouge = Rouge()
-        self.task = task
-
-    def evaluate_rouge(self):
-        
-        try:
-            all_rouge_scores = self.calculate_rouge.get_scores(self.ref_sents , self.hyp_sents)
-            avg_rouge_f1 = np.mean([np.mean([rouge_scores['rouge-1']["f"], 
-                              rouge_scores['rouge-2']["f"], 
-                              rouge_scores['rouge-l']["f"]]) for rouge_scores in all_rouge_scores])
-        except:
-            log.warning('Some problem while calculating ROUGE so setting it to zero')
-            avg_rouge_f1 = 0
-
-        return avg_rouge_f1
-
-    def evaluate_bert_score(self):
-        
-        try:
-            _, _, bert_f1 = b_score(self.ref_sents, self.hyp_sents, 
-                                  model_type=config.bert_score_model,
-                                  device='cpu')
-            avg_bert_f1 = np.mean(bert_f1.numpy())
-        except:
-            log.warning('Some problem while calculating BERT score so setting it to zero')
-            avg_bert_f1 = 0
-            
-        return avg_bert_f1
-
-    def evaluate_bleu_score(self, case_sensitive=False):
-
-        ref_filename = tempfile.NamedTemporaryFile(delete=False)
-        hyp_filename = tempfile.NamedTemporaryFile(delete=False)
-
-        with tf.io.gfile.GFile(ref_filename.name, 'w') as f_ref:
-            with tf.io.gfile.GFile(hyp_filename.name, 'w') as f_hyp:
-                for references, hypothesis_output in zip(self.ref_sents , self.hyp_sents):
-                    f_hyp.write(hypothesis_output+'\n')
-                    f_ref.write(references+'\n')
-        try:
-            bleu_score = compute_bleu.bleu_wrapper(ref_filename = ref_filename.name, 
-                                                   hyp_filename = hyp_filename.name,
-                                                   case_sensitive = False)
-        except:
-            log.warning('Some problem while calculating BLEU score so setting it to zero')
-            bleu_score = 0
-
-        return bleu_score
-
-    def evaluate_task_score(self):
-
-        return self.evaluate_bleu_score() if self.task=='translate' else self.evaluate_rouge()
 
 class CustomSchedule(tf.keras.optimizers.schedules.LearningRateSchedule):
 
@@ -96,7 +39,6 @@ def label_smoothing(inputs, epsilon):
 
     return ((1-epsilon) * inputs) + (epsilon / V)
 
-# nll :- negative_log_liklihood
 def mask_and_calculate_nll_loss(predictions, 
                             target_ids, 
                             mask_a_with,
@@ -104,10 +46,9 @@ def mask_and_calculate_nll_loss(predictions,
                             epsilon=config.epsilon_ls
                             ):
 
-    
     target_ids_3D = label_smoothing(tf.one_hot(target_ids, depth=config.target_vocab_size), epsilon)
     loss = negative_log_liklihood(target_ids_3D, predictions)
-    mask = create_pretrained_model_mask(target_ids, mask_a_with, mask_b_with)
+    mask = create_pretrained_model_mask(target_ids, mask_a_with, mask_b_with) 
     loss = loss * mask
     loss = tf.reduce_sum(loss)/tf.reduce_sum(mask)
 
@@ -118,12 +59,15 @@ def calculate_bert_f1(target_ids, predicted):
 
     target_mask = create_pretrained_model_mask(target_ids)
     predicted_return_mask = create_pretrained_model_mask(predicted)
-    # (4*batch_size, tar_seq_len, target_vocab_size)
-    target_embeddings = Model.decoder_bert_model(target_ids, attention_mask=target_mask)[0]
-    # (4*batch_size, cand_seq_len, target_vocab_size)
-    predicted_embeddings = Model.decoder_bert_model(predicted, attention_mask=predicted_return_mask)[0]
-    target_embeddings_normalized = target_embeddings/(tf.norm(target_embeddings, axis=-1)[:, :, tf.newaxis])
-    predicted_embeddings_normalized = predicted_embeddings/(tf.norm(predicted_embeddings, axis=-1)[:, :, tf.newaxis])
+    mask = tf.concat([target_mask, predicted_return_mask], axis=0)
+    ids = tf.concat([target_ids, predicted], axis=0)
+    # (8*batch_size, *_seq_len, target_vocab_size)
+    embeddings = Model.decoder_bert_model(ids, attention_mask=mask)[0]
+    embeddings_normalized = embeddings/(tf.norm(embeddings, axis=-1)[:, :, tf.newaxis])
+    # (4*batch_size,              (4*batch_size, 
+    #  tar_seq_len,               cand_seq_len ,
+    #  target_vocab_size),        target_vocab_size)
+    target_embeddings_normalized, predicted_embeddings_normalized = tf.split(embeddings_normalized, 2, axis=0)
     # (4*batch_size, tar_seq_len, cand_seq_len)
     scores = tf.matmul(predicted_embeddings_normalized, target_embeddings_normalized, transpose_b=True)
     mask = tf.matmul(predicted_return_mask[:, :, tf.newaxis], target_mask[:, tf.newaxis,: ])
@@ -195,66 +139,38 @@ def loss_function(target_ids,
                                                   target_ids[:, :-1],
                                                   config.CLS_ID
                                                   )
-    loss = tf.stack([draft_loss, refine_loss], axis=0)
-    target_ids = tf.tile(target_ids[:, 1:], [4, 1])
-    policy_gradients_loss, bert_f1_score  = calculate_policy_gradient_loss(
-                                                            draft_logits,
-                                                            refine_logits,
-                                                            sample_returns, 
-                                                            target_ids,
-                                                            candidate_returns, 
-                                                            loss
-                                                            )
+    if not config.gamma == 0:
+        loss = tf.stack([draft_loss, refine_loss], axis=0)
+        target_ids = tf.tile(target_ids[:, 1:], [4, 1])
+        loss, bert_f1_score  = calculate_policy_gradient_loss(
+                                                              draft_logits,
+                                                              refine_logits,
+                                                              sample_returns, 
+                                                              target_ids,
+                                                              candidate_returns, 
+                                                              loss
+                                                              )
+    else:
+        loss = tf.reduce_sum([draft_loss, refine_loss])
+        
+        if config.show_BERT_F1_during_training:
+            predicted = tf.math.argmax(refine_logits, axis=-1, output_type=tf.int64)
+            bert_f1_score = calculate_bert_f1(target_ids[:, :-1], predicted)
+            bert_f1_score = tf.reduce_mean(bert_f1_score)
+        else:
+            bert_f1_score = 0.0
+        
 
-    return (policy_gradients_loss, bert_f1_score)
-    
-def get_loss_and_accuracy():
-
-    loss = tf.keras.metrics.Mean()
-    accuracy = tf.keras.metrics.CategoricalAccuracy(name='Accuracy')
-
-    return(loss, accuracy)
-    
-def write_output_sequence(true_target_ids, predictions, step, write_output_seq, input_ids):
-  
-    ref_sents = target_tokenizer.batch_decode(true_target_ids, skip_special_tokens=True)
-    hyp_sents = target_tokenizer.batch_decode(predictions, skip_special_tokens=True)
-    evaluate  = evaluation_metrics(ref_sents, hyp_sents)
-    bert_f1  = evaluate.evaluate_bert_score()
-    if write_output_seq:
-        inp_sents = source_tokenizer.batch_decode(input_ids, skip_special_tokens=True)
-        with tf.io.gfile.GFile(config.output_sequence_write_path+str(step.numpy().decode('utf-8')), 'a') as f:
-            for source, ref, hyp in zip(inp_sents, ref_sents, hyp_sents):
-                f.write(source+'\t'+ref+'\t'+hyp+'\n')
-    task_score = evaluate.evaluate_task_score()
-
-    return (task_score, bert_f1)
-  
-  
-def tf_write_output_sequence(input_ids, tar_real, predictions, step, write_output_seq):
-
-    return tf.py_function(write_output_sequence, 
-                          [input_ids, tar_real, predictions, step, write_output_seq], 
-                          Tout=[tf.float32, tf.float32]
-                          )
-    
+    return (loss, bert_f1_score)
+            
 def get_optimizer():
 
-    learning_rate = config.learning_rate if config.learning_rate else CustomSchedule(config.d_model)    
-    if config.grad_clipnorm:
-        optimizer = tf.keras.optimizers.Adam(
-                                 learning_rate=learning_rate, 
-                                 beta_1=0.9, 
-                                 beta_2=0.98, 
-                                 clipnorm=config.grad_clipnorm,
-                                 epsilon=1e-9
-                                 )
-    else:
-        optimizer = tf.keras.optimizers.Adam(
+    learning_rate = CustomSchedule(config.d_model)  
+    optimizer = tf.keras.optimizers.Adam(
                                  learning_rate=learning_rate, 
                                  beta_1=0.9, 
                                  beta_2=0.98, 
                                  epsilon=1e-9
-                                 )
+                                 )  
 
     return optimizer

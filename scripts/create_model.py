@@ -10,10 +10,11 @@ from model_utils import (tile_and_mask_diagonal, create_masks, topp_topk,
 def _embedding_from_bert():
 
     with tf.device("CPU:0"):  
-        input_pretrained_bert = TFAutoModel.from_pretrained(config.input_pretrained_model, 
+        input_pretrained_bert = TFAutoModel.from_pretrained(
+                                              config.input_pretrained_model, 
                                               trainable=False, 
-                                              name=config.input_pretrained_model)
-        
+                                              name=config.input_pretrained_model
+                                              )
         target_pretrained_bert = TFAutoModel.from_pretrained(
                                     config.target_pretrained_model, 
                                     trainable=False, 
@@ -75,7 +76,10 @@ class Bertified_transformer(tf.keras.Model):
         # (batch_size, tar_seq_len, tar_vocab_size)
         return draft_logits, draft_attention_dist
 
-    def _refine_pre_process(self, target, input_ids, enc_output, padding_mask, batch_size, max_time_steps):
+    def _refine_pre_process(self, target, 
+                            input_ids, enc_output, 
+                            padding_mask, batch_size, 
+                            max_time_steps):
 
         # (batch_size x (seq_len - 1), seq_len) 
         dec_inp_ids = tile_and_mask_diagonal(
@@ -95,7 +99,9 @@ class Bertified_transformer(tf.keras.Model):
 
         return (dec_inp_ids, input_ids, enc_output, padding_mask, mark_masked_indices)
 
-    def _refine_post_process(self, refined_op, mark_masked_indices, batch_size, max_time_steps):
+    def _refine_post_process(self, refined_op, 
+                            mark_masked_indices, batch_size, 
+                            max_time_steps):
         # * :- inp_seq_len if attention else tar_vocab_size
 
         third_axis_len = tf.shape(refined_op)[-1]
@@ -193,20 +199,21 @@ class Bertified_transformer(tf.keras.Model):
                                                       )
             # (batch_size, 1, vocab_len)
             dec_output_i = dec_output[:, i:i+1 ,:]
-            truncated_logits = topp_topk(logits=dec_output_i, 
+            truncated_refine_logits = topp_topk(logits=dec_output_i, 
                                 batch_size=batch_size,
                                 temperature=temperature, 
                                 top_k=top_k, 
                                 top_p=top_p)
             if decoder_type == 'greedy':
-                predictions = tf.expand_dims(tf.math.argmax(truncated_logits, axis=-1, output_type=tf.int32), 1)
+                predictions = tf.expand_dims(tf.math.argmax(truncated_refine_logits, axis=-1, output_type=tf.int64), 1)
             else:
-                predictions = tf.random.categorical(truncated_logits, num_samples=1, dtype=tf.int32, seed=1)
+                predictions = tf.random.categorical(truncated_refine_logits, num_samples=1, dtype=tf.int64, seed=1)
             dec_input = with_column(dec_input, i, predictions)
         # (batch_size, seq_len, vocab_len), (_)        
-        return dec_input, attention_dist
+        return dec_input, attention_dist, dec_output
 
-    def _calculate_sample_returns(self, draft_logits, refine_logits, batch_size):
+    def _calculate_sample_returns(self, draft_logits, 
+                                  refine_logits, batch_size):
 
         logits = tf.concat([draft_logits, refine_logits], axis=0)
         #logits :- (2*batch_size, cand_seq_len, target_vocab_size)
@@ -214,18 +221,20 @@ class Bertified_transformer(tf.keras.Model):
         # (2*batch_size*tar_seq_len, target_vocab_size)
         reshaped_logits = tf.reshape(logits, (-1, config.target_vocab_size))
         # (2*batch_size*tar_seq_len, 1)
-        select_samples = tf.random.categorical(reshaped_logits, 1, seed=1, dtype=tf.int32)
+        select_samples = tf.random.categorical(reshaped_logits, 1, seed=1, dtype=tf.int64)
         # (2*batch_size, cand_seq_len)
         sample_returns = tf.reshape(select_samples, (batch_size, -1))
         # (2*batch_size, tar_seq_len)
-        greedy_returns = tf.math.argmax(logits, axis=-1, output_type=tf.int32)
+        greedy_returns = tf.math.argmax(logits, axis=-1, output_type=tf.int64)
         # (4*batch_size, cand_seq_len)
         candidate_returns = tf.concat([sample_returns, greedy_returns], axis=0)
         
         return (candidate_returns, sample_returns)
         
-    def fit(self, input_ids, target_ids, training,
-           look_ahead_mask, dec_padding_mask, batch_size):
+    def fit(self, input_ids, 
+            target_ids, training,
+            look_ahead_mask, dec_padding_mask, 
+            batch_size):
         
         enc_output = self.encoder(input_ids)[0]
         # (batch_size, seq_len, vocab_len), _
@@ -246,12 +255,14 @@ class Bertified_transformer(tf.keras.Model):
                                                                 padding_mask=dec_padding_mask,
                                                                 training=training
                                                                 )
-        
-        candidate_returns, sample_returns = self._calculate_sample_returns(
-                                                          draft_logits,
-                                                          refine_logits, 
-                                                          batch_size
-                                                          )
+        if not config.gamma == 0:
+            candidate_returns, sample_returns = self._calculate_sample_returns(
+                                                              draft_logits,
+                                                              refine_logits, 
+                                                              batch_size
+                                                              )
+        else:
+            candidate_returns, sample_returns = (None, None)
 
         return (draft_logits, refine_logits, draft_attention_dist, 
                 refine_attention_dist, candidate_returns, sample_returns)
@@ -272,7 +283,7 @@ class Bertified_transformer(tf.keras.Model):
         # (batch_size, seq_len, vocab_len), 
         # ()
         (predicted_draft_output_sequence, 
-          draft_attention_dist) = self.draft_decoder(
+          draft_attention_dist) = draft_decoder(self,
                                                 input_ids,
                                                 enc_output=enc_output,
                                                 beam_size=beam_size,
@@ -285,7 +296,7 @@ class Bertified_transformer(tf.keras.Model):
         # (batch_size, seq_len, vocab_len), 
         # ()
         (predicted_refined_output_sequence, 
-          refined_attention_dist) = self.refined_output_sequence_sampling(
+          refined_attention_dist, truncated_refine_logits) = self.refined_output_sequence_sampling(
                                             input_ids,
                                             enc_output=enc_output,
                                             draft_output_sequence=predicted_draft_output_sequence,
@@ -297,7 +308,7 @@ class Bertified_transformer(tf.keras.Model):
                                             )
         
         return (predicted_draft_output_sequence, draft_attention_dist, 
-               predicted_refined_output_sequence, refined_attention_dist)
+               predicted_refined_output_sequence, refined_attention_dist, truncated_refine_logits)
 
     def call(self, input_ids, target_ids, dec_padding_mask, 
                  look_ahead_mask, training,

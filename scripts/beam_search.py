@@ -174,7 +174,7 @@ def _create_make_unique(inputs):
 
   height = inputs.shape[0]
   width = inputs.shape[1]
-  zeros = tf.zeros([height, width], dtype=tf.int32)
+  zeros = tf.zeros([height, width], dtype=tf.int64)
 
   # Count_mask is used to mask away the low order bits to ensure that every
   # element is distinct.
@@ -188,20 +188,20 @@ def _create_make_unique(inputs):
   # floating point number. The sign is zero, exponent is one, and the fraction
   # is zero.
   smallest_normal = 1 << 23
-  smallest_normal_r0 = tf.constant(smallest_normal, dtype=tf.int32)
+  smallest_normal_r0 = tf.constant(smallest_normal, dtype=tf.int64)
   smallest_normal_r2 = tf.fill([height, width], smallest_normal_r0)
 
   # Low_bit_mask is used to mask away the sign bit when computing the absolute
   # value.
   low_bit_mask = ~(1 << 31)
-  low_bit_mask_r0 = tf.constant(low_bit_mask, dtype=tf.int32)
+  low_bit_mask_r0 = tf.constant(low_bit_mask, dtype=tf.int64)
   low_bit_mask_r2 = tf.fill([height, width], low_bit_mask_r0)
 
-  iota = tf.tile(tf.expand_dims(tf.range(width, dtype=tf.int32), 0),
+  iota = tf.tile(tf.expand_dims(tf.range(width, dtype=tf.int64), 0),
                  [height, 1])
 
   # Compare the absolute value with positive zero to handle negative zero.
-  input_r2 = tf.bitcast(inputs, tf.int32)
+  input_r2 = tf.bitcast(inputs, tf.int64)
   abs_r2 = tf.bitwise.bitwise_and(input_r2, low_bit_mask_r2)
   if_zero_r2 = tf.equal(abs_r2, zeros)
   smallest_normal_preserving_sign_r2 = tf.bitwise.bitwise_or(
@@ -249,7 +249,7 @@ def _create_topk_unique(inputs, k):
   count_mask = next_power_of_two - 1
   mask_r0 = tf.constant(count_mask)
   mask_r2 = tf.fill([height, k], mask_r0)
-  topk_r2_s32 = tf.bitcast(topk_r2, tf.int32)
+  topk_r2_s32 = tf.bitcast(topk_r2, tf.int64)
   topk_indices_r2 = tf.bitwise.bitwise_and(topk_r2_s32, mask_r2)
   return topk_r2, topk_indices_r2
 
@@ -446,7 +446,8 @@ def beam_search(symbols_to_logits_fn,
   # Finished will keep track of all the sequences that have finished so far
   # Finished log probs will be negative infinity in the beginning
   # finished_flags will keep track of booleans
-  finished_seq = tf.zeros(common_layers.shape_list(alive_seq), tf.int32)
+  alive_seq = tf.cast(alive_seq, tf.int64)
+  finished_seq = tf.zeros(common_layers.shape_list(alive_seq), tf.int64)
   # Setting the scores of the initial to negative infinity.
   finished_scores = tf.ones([batch_size, beam_size]) * -INF
   finished_flags = tf.zeros([batch_size, beam_size], tf.bool)
@@ -478,7 +479,7 @@ def beam_search(symbols_to_logits_fn,
       # finished scores
       finished_seq = tf.concat(
           [finished_seq,
-           tf.zeros([batch_size, beam_size, 1], tf.int32)], axis=2)
+           tf.zeros([batch_size, beam_size, 1], tf.int64)], axis=2)
 
     # Set the scores of the unfinished seq in curr_seq to large negative
     # values
@@ -585,7 +586,7 @@ def beam_search(symbols_to_logits_fn,
           flat_curr_scores, k=beam_size * 2)
     else:
       topk_scores, topk_ids = tf.nn.top_k(flat_curr_scores, k=beam_size * 2)
-
+    topk_ids = tf.cast(topk_ids, tf.int64)
     # Recovering the log probs because we will need to send them back
     topk_log_probs = topk_scores * length_penalty
 
@@ -599,7 +600,7 @@ def beam_search(symbols_to_logits_fn,
       # We will also use the coordinates to gather the booleans of the beam
       # items that survived.
       batch_pos = compute_batch_indices(batch_size, beam_size * 2)
-
+      batch_pos = tf.cast(batch_pos, tf.int64)
       # top beams will give us the actual coordinates to do the gather.
       # stacking will create a tensor of dimension batch * beam * 2, where the
       # last dimension contains the i,j gathering coordinates.
@@ -743,7 +744,7 @@ def beam_search(symbols_to_logits_fn,
                         config.target_seq_length, 
                         config.input_seq_length
                         ))
-  attention_weights_shape = tf.TensorShape([None, None, None, None])
+  attention_weights_shape = tf.TensorShape([None, None, None])
   if use_tpu:
     inner_shape = tf.TensorShape([batch_size, beam_size, decode_length + 1])
   if use_tpu:

@@ -33,13 +33,20 @@ Optimize the model:-
 	https://www.aaai.org/ojs/index.php/AAAI/article/view/4487 :- Tied transformers:parameter sharing bw encoder and decoder
 	https://arxiv.org/abs/2001.04451 :- Reformer
 	https://arxiv.org/abs/1904.07418 :- Positional Encoding to Control Output Sequence Length
-	*) keep full stop in the training data to mark end of the sentence.
 	*) online Data augumentation  during training
 		https://colab.research.google.com/drive/1RGWrQv3e0CRDPDROQ3ZmUWTmlRljasGi?authuser=0#scrollTo=E9RYnn9VDE4N
     *) Remove Tamil blacklist from the preprocess code
 ####################################################
 Coding
-
+ 
+ clean the download and encode script
+ b) then move it to bucket, replace set core_path in config to gs_bucket path
+ c) train with TPU
+ d) padding test
+train the model in GCP
+	*) remove tf.py_function in preprocess and metric evaluation
+	*) modify eval metric script to accomodate TF BERT
+*) tf profile optimization
 *) stage wise testing
 *) clean summarize_or_translate repo
 *) Rewards for RL approach
@@ -50,8 +57,8 @@ Coding
 				of ROUGE, BLEU, BERTScore, etc. that better approximates human evaluation; 		
 #####################################################
 Addtional refine mechanism:-
-		a) Electra style
-		b) Conditional Masked Language Modeling (C-MLM) :- make the generated output coherent by establishing a global context before 
+		a) Electra style used for NLU..not sure whether it could be used for NLG.
+		b) https://arxiv.org/pdf/1911.03829.pdf :- make the generated output coherent by establishing a global context before 
 				generating tokens 
 		c) Mixmatch, Fixmatch, Remixmatch
 		d) UDA

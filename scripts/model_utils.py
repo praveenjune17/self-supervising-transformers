@@ -241,6 +241,7 @@ def draft_decoder(self,
         start_ids = tf.repeat(config.CLS_ID, repeats=batch_size)
         input_ids = tfa.seq2seq.tile_batch(input_ids, multiplier=beam_size)
         enc_output = tfa.seq2seq.tile_batch(enc_output, multiplier=beam_size)
+        #start_ids = tf.cast(start_ids, dtype=tf.int64)
         def perform_beam_search(dec_input):
 
             return query_decoder(self, enc_output, input_ids, dec_input, 

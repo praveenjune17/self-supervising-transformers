@@ -182,6 +182,8 @@ class Pointer_Generator(tf.keras.layers.Layer):
         batch_indices, target_indices = tf.meshgrid(tf.range(batch), 
                                                     tf.range(target_shape), 
                                                     indexing="ij")
+        #target_indices = tf.cast(target_indices, dtype=tf.int64)
+        #batch_indices = tf.cast(batch_indices, dtype=tf.int64)
         tiled_batch_indices = tf.tile(batch_indices[:, :, tf.newaxis], 
                                       [1, 1, input_shape]
                                       )
@@ -189,11 +191,12 @@ class Pointer_Generator(tf.keras.layers.Layer):
                                        [1, 1, input_shape]
                                        )
         # convert to int32 since they are compatible with scatter_nd
-        encoder_input = tf.cast(encoder_input, dtype=tf.int32)
+        encoder_input = tf.cast(encoder_input, dtype=tf.int64)
         #tile on tar_seq_len so that the input vocab can be copied to output
         tiled_encoder_input = tf.tile(encoder_input[:, tf.newaxis,: ], 
                                       [1, target_shape, 1]
                                       )
+        tiled_encoder_input = tf.cast(tiled_encoder_input, dtype=tf.int32)
         gather_attention_indices = tf.stack([tiled_batch_indices, 
                                             tiled_target_indices, 
                                             tiled_encoder_input
