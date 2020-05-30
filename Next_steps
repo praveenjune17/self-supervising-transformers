@@ -65,9 +65,6 @@ Addtional refine mechanism:-
 		e) self-training
 		f) contrastive predictive coding
 ###################################################
-Investigate:-
-	*) does gradient accumulation gets skipped when intefered by validation steps?
-###################################################
 #) Make validation run in another gpu
 #) automatically suggest tokens per batch based on the available GPU memory
 #) source_text == decode(encode(source_text))

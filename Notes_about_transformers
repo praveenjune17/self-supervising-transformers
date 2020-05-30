@@ -1,22 +1,3 @@
-#######################
-Based on the experiments with BERT-F1-score in translation and summarization, BERT-F1-score of even 53 (or 0.53) doesn't mean that the predicted sentences are related to the context of the input sentences so the minimum value bar for BERT-score should be atleast greater than 55. Test few samples with bert-score to get an idea of how it works.
-  
-Not implemented features:-
-  Beam_search doesn't output attention weights, if required then need to modify the core t2t algorithm
-  Multiple occurences of stop values in beam search and repeated occurences of n-grams
-  Mixed precision is disabled with bertified_transformer architecture
-
-Watchout for:-
-  Source code needs to be changed once the below changes are implemented by the community
-  a) Gradient accumulation implementation by tensorflow community
-  b) label smoothing fix.
-
-For using custom tokenizers for transformer model please train it using 'create_tokenizer_using_huggingface_tokenizers.py'
-Please donot train BERTWordpiece tokenizer for tamil seems it removes '.' from the characters make use of ByteLevelBPETokenizer
-instead.
-  
-Removed baseline reward for policy gradients since tf.function creates issues when instantiating cosine_similarity loss twice.
-  could be mitigated by tf.config.experimental_run_functions_eagerly(True), but hurts performance by 4X
 #########################
 Positional encoding:-
 	'''Positional encoding is added to give the model some information about the 

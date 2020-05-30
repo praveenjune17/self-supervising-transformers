@@ -44,7 +44,7 @@ training_parms = {
      'display_model_summary' : True,
      'early_stop' : False,
      'enable_jit' : True,                    # disabled for windows automatically
-     'eval_after_steps' : 100,              # Evaluate after these many training steps
+     'eval_after_steps' : 5000,              # Evaluate after these many training steps
      'gamma' : 0.0,
      'gradient_accumulation_steps': 18,   
      'last_recorded_value': 0.5459,
@@ -54,8 +54,8 @@ training_parms = {
      'run_tensorboard': True,
      'samples_to_train' : -1,                  # -1 takes all the samples
      'samples_to_validate' : -1,
-     'show_BERT_F1_during_training' : False   # for performance reasons set this to False 
-     'steps_to_print_training_info': 20,      # print training progress per number of batches specified
+     'show_BERT_F1_during_training' : False,   # for performance reasons set this to False 
+     'steps_to_print_training_info': 100,      # print training progress per number of batches specified
      'tfds_name' : 'en_tam_parallel_text',            #cnn_dailymail,en_tam_parallel_text     # tfds dataset to be used
      'init_tolerance' : 0,
      'tolerance_threshold': 7,          # Stop training after the threshold is reached
@@ -93,7 +93,7 @@ file_path = {
         'checkpoint_path' : os.path.join(core_path, f"checkpoints{path_seperator}{dataset_name+'_'+model}{path_seperator}"),
         'initial_weights' : os.path.join(core_path, f"initial_weights{path_seperator}{dataset_name+'_'+model}{path_seperator}"),
         'infer_csv_path' : None,
-        'infer_ckpt_path' : None,
+        'infer_ckpt_path' : 'D:\\Local_run\\checkpoints\\en_tam_parallel_text_bertified_transformer\\ckpt-301',
         'input_seq_vocab_path' : os.path.join(core_path, f"TFDS_vocab_files{path_seperator}{dataset_name}{path_seperator}vocab_en"),
         'log_path' : os.path.join(core_path, f"created_files{path_seperator}{dataset_name+'_'+model}{path_seperator}tensorflow.log"),
         'output_seq_vocab_path' : os.path.join(core_path, f"TFDS_vocab_files{path_seperator}{dataset_name}{path_seperator}vocab_ta"),

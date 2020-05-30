@@ -27,33 +27,31 @@ def preprocess(sentence):
     else:
         return preprocessed_sentence
 
-def translate():
+def generate():
     
-    en_input = input('Enter the sentence to be translated-> ')
+    en_input = input('Enter the sentence-> ')
     en_input = preprocess(en_input)
     input_ids = tf.constant(source_tokenizer.encode(en_input))[None, :]
-    #tf.convert_to_tensor([[config.input_CLS_ID] + source_tokenizer.encode(en_input) + [config.input_SEP_ID]])
-    #print(f'input_ids')
-    #print(input_ids)
     dec_padding_mask = create_padding_mask(input_ids)
 
     start = time.time()
     (preds_draft_summary, _,
-    preds_refine_summary, _) = Model.predict(input_ids,
-                                               batch_size=1,
-                                               draft_decoder_type='topktopp',
-                                               beam_size=10,
-                                               length_penalty=0.6,
-                                               temperature=1, 
-                                               top_p=0.9,
-                                               top_k=25)
-    translated_sequence = target_tokenizer.decode(tf.squeeze(preds_refine_summary), skip_special_tokens=True)
-    print(f'Translated output--> {translated_sequence if translated_sequence else "EMPTY"}')
+    preds_refine_summary, _,
+    _) = Model.predict(input_ids,
+                       batch_size=1,
+                       draft_decoder_type='topktopp',
+                       beam_size=10,
+                       length_penalty=0.6,
+                       temperature=1, 
+                       top_p=0.9,
+                       top_k=25)
+    generated_sequence = target_tokenizer.decode(tf.squeeze(preds_refine_summary), skip_special_tokens=True)
+    print(f'Translated output--> {generated_sequence if generated_sequence else "EMPTY"}')
     print(f'Time to process --> {round(time.time()-start)} seconds')
 
 if __name__ == '__main__':
     ckpt = tf.train.Checkpoint(
                                Model=Model
                               )
-    ckpt.restore('D:\\Local_run\\checkpoints\\en_tam_parallel_text_bertified_transformer\\ckpt-301').expect_partial()
-    translate()
+    ckpt.restore().expect_partial()
+    generate()
