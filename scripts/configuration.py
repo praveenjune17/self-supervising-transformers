@@ -43,7 +43,7 @@ training_parms = {
      'accumulate_gradients' : True,
      'display_model_summary' : True,
      'early_stop' : False,
-     'enable_jit' : True,                    # disabled for windows automatically
+     'enable_jit' : False,                    # disabled for windows automatically
      'eval_after_steps' : 5000,              # Evaluate after these many training steps
      'gamma' : 0.0,
      'gradient_accumulation_steps': 9,   
@@ -85,8 +85,8 @@ h_parms = {
    }                                    
 dataset_name = training_parms['tfds_name']
 model = 'bertified_transformer'
-core_path = os.getcwd()
-path_seperator,  training_parms['enable_jit'] = ('\\', False) if platform.system() == 'Windows' else ('/', True)
+core_path = os.getcwd()#"/content/drive/My Drive/"
+path_seperator = '\\' if platform.system() == 'Windows' else '/'
 file_path = {
         'best_ckpt_path' : os.path.join(core_path, f"best_checkpoints{path_seperator}{dataset_name+'_'+model}{path_seperator}"),  
         'checkpoint_path' : os.path.join(core_path, f"checkpoints{path_seperator}{dataset_name+'_'+model}{path_seperator}"),
@@ -97,10 +97,11 @@ file_path = {
         'log_path' : os.path.join(core_path, f"created_files{path_seperator}{dataset_name+'_'+model}{path_seperator}tensorflow.log"),
         'output_seq_vocab_path' : os.path.join(core_path, f"TFDS_vocab_files{path_seperator}{dataset_name}{path_seperator}vocab_ta"),
         'output_sequence_write_path' : os.path.join(core_path, f"created_files{path_seperator}{dataset_name+'_'+model}{path_seperator}summaries{path_seperator}"),
-        'serialized_tensor_path' : os.path.join("C:\\Users\\Vinodhkumar\\Google Drive", 'saved_serialized_tensor_'+ model_parms['target_language']),
+        'serialized_tensor_path' : os.path.join(core_path, 'saved_serialized_tensor_'+ model_parms['target_language']),
         'tensorboard_log' : os.path.join(core_path, f"created_files{path_seperator}{dataset_name+'_'+model}{path_seperator}tensorboard_logs{path_seperator}"),
         'tfds_data_dir' : os.path.join(core_path, f'Tensorflow_datasets{path_seperator}{dataset_name}_dataset'),
         'tfds_data_version' : None,
+        'tf_records_path' : os.path.join(core_path, f'Tensorflow_datasets{path_seperator}{dataset_name}_dataset'),
         'train_csv_path' : None
             }
 config = Bunch(model_parms)

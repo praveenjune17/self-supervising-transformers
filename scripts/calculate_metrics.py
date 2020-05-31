@@ -3,10 +3,8 @@ import tempfile
 import tensorflow as tf
 import numpy as np
 from rouge import Rouge
-from bert_score import score as b_score
 from create_model import Model
 from model_utils import create_pretrained_model_mask
-from official.nlp.transformer import compute_bleu
 from configuration import config, source_tokenizer, target_tokenizer
 from utilities import log
 
