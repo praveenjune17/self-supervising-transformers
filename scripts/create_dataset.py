@@ -82,7 +82,7 @@ datasets = {}
 for split in ['train', 'validation']:
     if split == 'train':
         drop_remainder=False
-        shuffle=False
+        shuffle=True
         batch_size = config.train_batch_size
         num_examples_to_select = config.samples_to_train
     else:

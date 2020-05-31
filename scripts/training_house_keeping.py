@@ -5,9 +5,9 @@ from utilities import create_tensorboard_parms
 
 model_metrics = 'Step {},\n\
                  Train Loss {:.4f},\n\
-                 train_BERT_F1 {:.4f},\n\
+                 train_BERT_F1 {},\n\
                  validation_perplexity {},\n\
-                 validation_BERT_f1 {:4f}\n'   
+                 validation_BERT_f1 {:.4f}\n'   
 evaluation_step  = 'Time taken for {} step : {} secs' 
 checkpoint_details = 'Saving checkpoint at step {} on {}'
 (_, valid_output_sequence_writer, _) = create_tensorboard_parms()
@@ -30,7 +30,7 @@ def training_results(
                     train_loss,
                     train_BERT_score,
                     validation_perplexity, 
-                    bert_score,
+                    validation_bert_score,
                     timing_info,
                     ckpt_save_path,
                     log,
@@ -41,9 +41,9 @@ def training_results(
                 model_metrics.format(
                         step, 
                         train_loss,
-                        train_BERT_score,
+                        train_BERT_score if config.show_BERT_F1_during_training else None,
                         validation_perplexity,
-                        bert_score*100
+                        validation_bert_score*100 
                         )
               )
       log.info(evaluation_step.format(step, timing_info))
@@ -59,15 +59,14 @@ def copy_checkpoint(copy_best_ckpt, ckpt_save_path, all_metrics,
     ckpt_files_tocopy = ['checkpoint'] + ckpt_files_tocopy
     for files in ckpt_files_tocopy:
         shutil.copy2(os.path.join(ckpt_fold, files), config.best_ckpt_path)
-    log.info(f'{to_monitor} is {all_metrics[to_monitor]:4f} so checkpoint \
-            {ckpt_string} are copied to best checkpoints directory')
+    log.info(f'{to_monitor} is {all_metrics[to_monitor]:4f} so\
+            {ckpt_string} is copied to best checkpoints directory')
 
-def display_results(bert_score, unified_score, perplexity, step, config):
+def display_results(bert_score, perplexity, step, config):
     
     with valid_output_sequence_writer.as_default():
         tf.summary.scalar('BERT_f1', bert_score, step=step)
         tf.summary.scalar('Perplexity', perplexity, step=step)
-        tf.summary.scalar('Custom_metric', unified_score, step=step)
 
 def early_stop(train_loss, log, config, to_monitor):
     # Warn and early stop
@@ -97,34 +96,26 @@ def monitor_eval_metrics(ckpt_save_path,
                         copy_best_ckpt=True):
 
     to_monitor=config.monitor_metric  
-    all_eval_metrics = {'unified_metric' : None, 
+    all_eval_metrics = {
                         'bert_f1_score' : bert_f1_score, 
                         'perplexity' : perplexity
                         }
     assert to_monitor in all_eval_metrics, (
                   f'Available metrics to monitor are {all_eval_metrics}')
     aggregated_metric.reset_states()
-    all_eval_metrics['unified_metric'] = aggregated_metric([
-                                        all_eval_metrics['bert_f1_score'], 
-                                        all_eval_metrics['perplexity']], 
-                                        sample_weight=[
-                                        config.metric_weights['bert_f1_score'], 
-                                        config.metric_weights['perplexity']
-                                                      ]
-                                                    ).numpy()
-    log.info(f"weighted_and_unified_metric {all_eval_metrics['unified_metric']}")
     if config.run_tensorboard:
         display_results(all_eval_metrics['bert_f1_score'], 
-                        all_eval_metrics['unified_metric'],
                         all_eval_metrics['perplexity'],
                         step,
                         config)
-    if config.last_recorded_value <= all_eval_metrics[to_monitor]:
+    if to_monitor == 'bert_f1_score':
+        copy_rule = (config.last_recorded_value <= all_eval_metrics[to_monitor])
+    else:
+        copy_rule = (config.last_recorded_value >= all_eval_metrics[to_monitor])
+    if copy_rule:
         if copy_best_ckpt:
-            copy_checkpoint(copy_best_ckpt, 
-                            ckpt_save_path, 
-                            all_eval_metrics, 
-                            to_monitor, 
+            copy_checkpoint(copy_best_ckpt, ckpt_save_path, 
+                            all_eval_metrics, to_monitor, 
                             log, config)
         else:
             pass

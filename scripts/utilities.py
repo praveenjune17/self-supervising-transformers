@@ -67,10 +67,10 @@ def check_recorded_metric_val():
         if config.last_recorded_value is None:
             log.info('setting default value to the last_recorded_value since not \
                         able to find the metrics from the log')
-            config.last_recorded_value = 0 if config.monitor_metric != 'validation_loss' else float('inf')
+            config.last_recorded_value = 0 if config.monitor_metric != 'perplexity' else float('inf')
     except FileNotFoundError:
         log.info('setting default value to the last_recorded_value since file was not found')
-        config['last_recorded_value'] = 0 if config.monitor_metric != 'validation_loss' else float('inf')
+        config['last_recorded_value'] = 0 if config.monitor_metric != 'perplexity' else float('inf')
 
 
 

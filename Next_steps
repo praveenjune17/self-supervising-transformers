@@ -6,19 +6,23 @@ Packages in colab + Additonal packages
 	*) bert score
 	*) clone bleu score repo (models/official/google)
     *) tensor2tensor
+################################
+Papers to read:-
+	https://arxiv.org/abs/1904.07418 :- Positional Encoding to Control Output Sequence Length
+	https://arxiv.org/pdf/1905.05475.pdf :- Cross-lingual Transfer of Neural Machine Translation Models without Shared Vocabularies	
+	https://arxiv.org/abs/1911.03829 :- Conditional Masked Language Modeling (C-MLM) distillation BERT
 ####################################################
 Addtional refine mechanism:-
 
 http://cs229.stanford.edu/proj2019aut/data/assignment_308832_raw/26632588.pdf:- Policy gradient approach to refine.
-https://arxiv.org/pdf/1905.05475.pdf :- Cross-lingual Transfer of Neural Machine Translation Models without Shared Vocabularies
 https://arxiv.org/abs/1910.10683 :- T5
-https://arxiv.org/abs/1911.03829 :- Conditional Masked Language Modeling (C-MLM) distillation BERT
 https://arxiv.org/abs/2003.10555:- electra
 https://kentonl.com/pub/gltpc.2020.pdf :- salient span masking, focus on problems that require world knowledge (suits QA)
 
 
 Enhance neural network understanding:-
 
+https://arxiv.org/pdf/2004.04696.pdf :- BLEURT: Learning Robust Metrics for Text Generation
 https://arxiv.org/abs/1809.08895 :- text to speech transformer
 								(https://colab.research.google.com/github/as-ideas/TransformerTTS/blob/master/notebooks/synthesize.ipynb)
 https://arxiv.org/pdf/2004.10188.pdf :- energy based models for text 
@@ -32,7 +36,7 @@ https://colinraffel.com/publications/arxiv2020how.pdf :- self-supervised trainin
 Optimize the model:-
 	https://www.aaai.org/ojs/index.php/AAAI/article/view/4487 :- Tied transformers:parameter sharing bw encoder and decoder
 	https://arxiv.org/abs/2001.04451 :- Reformer
-	https://arxiv.org/abs/1904.07418 :- Positional Encoding to Control Output Sequence Length
+	
 	*) online Data augumentation  during training
 		https://colab.research.google.com/drive/1RGWrQv3e0CRDPDROQ3ZmUWTmlRljasGi?authuser=0#scrollTo=E9RYnn9VDE4N
     *) Remove Tamil blacklist from the preprocess code

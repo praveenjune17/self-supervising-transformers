@@ -44,25 +44,25 @@ training_parms = {
      'display_model_summary' : True,
      'early_stop' : False,
      'enable_jit' : True,                    # disabled for windows automatically
-     'eval_after_steps' : 5000,              # Evaluate after these many training steps
+     'eval_after_steps' : 100,              # Evaluate after these many training steps
      'gamma' : 0.0,
-     'gradient_accumulation_steps': 18,   
-     'last_recorded_value': 0.5459,
+     'gradient_accumulation_steps': 9,   
+     'last_recorded_value':  501,
      'min_train_loss' : 1.0,
-     'monitor_metric' : 'bert_f1_score',
+     'monitor_metric' : 'perplexity',      # perplexity or bert_f1_score
      'num_parallel_calls' : -1,
      'run_tensorboard': True,
      'samples_to_train' : -1,                  # -1 takes all the samples
      'samples_to_validate' : -1,
      'show_BERT_F1_during_training' : False,   # for performance reasons set this to False 
-     'steps_to_print_training_info': 100,      # print training progress per number of batches specified
+     'steps_to_print_training_info': 10,      # print training progress per number of batches specified
      'tfds_name' : 'en_tam_parallel_text',            #cnn_dailymail,en_tam_parallel_text     # tfds dataset to be used
      'init_tolerance' : 0,
      'tolerance_threshold': 7,          # Stop training after the threshold is reached
      'tokens_per_batch' : 4050,
      'use_custom_tokenizer' : None,
      'use_tfds' : True,                 # use tfds datasets as to train the model else use the given csv file
-     'validate_when_train_loss_is' : 6.0           # run evaluation when loss reaches 10
+     'validate_when_train_loss_is' : 10.0           # run evaluation when loss reaches 10
      }
 inference_decoder_parms = {
     'beam_size': 1,              
@@ -74,7 +74,6 @@ inference_decoder_parms = {
     'top_k' : 0                         
     }
 h_parms = {
-   'metric_weights': {'bert_f1_score':1.0, 'perplexity':0.0},
    'dropout_rate': 0.1,
    'epochs': 4,
    'epsilon_ls': 0.1,                  # label_smoothing hyper parameter

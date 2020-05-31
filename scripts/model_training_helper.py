@@ -20,7 +20,7 @@ avg_bert_score = tf.keras.metrics.Mean(name='bert_f1_mean')
 avg_perplexity = tf.keras.metrics.Mean(name='perplexity')
 optimizer = mixed_precision.LossScaleOptimizer(optimizer, loss_scale='dynamic')
 batch_zero = 'Time taken to feed the input data to the model {} seconds'
-batch_run_details = 'Train_Loss {:.4f} BERT_f1_score {:.4f}'
+batch_run_details = 'Train_Loss {:.4f} BERT_f1_score {:.4f}' if config.show_BERT_F1_during_training else 'Train_Loss {:.4f}'
 gradient_accumulators = []
 
 train_step_signature = [

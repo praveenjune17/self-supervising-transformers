@@ -117,8 +117,6 @@ def assert_config_values(config):
             f'available draft decoder types are {available_draft_decoder_types}')
     assert config.refine_decoder_type in available_refine_decoder_types, (
         f'available refine decoder types are {available_refine_decoder_types}')
-    assert len(config.metric_weights) == 2,'Only two metrics are available'
-    assert sum(config.metric_weights.values()) == 1, 'weights should sum to 1'
     if config.task == 'summarize':
         assert config.tfds_name in summarization_datasets, (
                 f'{config.tfds_name} not currently added to summarize dataset list')

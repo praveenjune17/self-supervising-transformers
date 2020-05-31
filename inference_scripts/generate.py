@@ -3,7 +3,7 @@ import re
 import pickle
 import tensorflow as tf
 import sys
-sys.path.insert(0, 'D:\\Local_run\\self-supervising-transformers\\scripts')
+sys.path.insert(0, 'D:\\Local_run\\transformers-with-2stagedecoders\\scripts')
 from profanity_check import predict_prob as vulgar_check
 from create_model import  Model
 from model_utils import create_padding_mask
