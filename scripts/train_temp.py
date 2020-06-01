@@ -18,7 +18,7 @@ train_dataset = train_dataset.repeat(total_steps)
 
 try:
     for (step, (input_ids, target_ids)) in tqdm(enumerate(train_dataset, 1), initial=1):
-        if step > 1745000:
+        if step > 1760000:
             start_time = time.time()
             grad_accum_flag = (True if (step%config.gradient_accumulation_steps) == 0 else False) if config.accumulate_gradients else None
             predictions, bert_f1_score = train_step(
