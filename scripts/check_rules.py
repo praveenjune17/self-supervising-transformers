@@ -1,5 +1,4 @@
 import tensorflow as tf
-import tensorflow_datasets as tfds
 from transformers import AutoTokenizer
 
 def set_memory_growth():

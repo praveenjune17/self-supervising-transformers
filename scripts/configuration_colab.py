@@ -31,7 +31,6 @@ model_parms = {
      'input_seq_length': 50,
      'num_heads': 8,                  # the number of heads in the multi-headed attention unit
      'num_layers': 8,                 # number of transformer blocks
-     'num_of_decoders_added' : 2, 
      'target_language' : 'ta',
      'target_pretrained_model' : 'distilbert-base-multilingual-cased',#'bert-base-uncased',
                                                                      #'bert-base-multilingual-cased',

@@ -201,7 +201,6 @@ def batch_run_check(batch, start_time, bert_f1_score):
     if config.run_tensorboard:
         with train_output_sequence_writer.as_default():
           tf.summary.scalar('train_loss', train_loss.result(), step=batch)
-          tf.summary.scalar('bert_f1_score', bert_f1_score.numpy(), step=batch)
     if config.display_model_summary:
         log.info(Model.summary())
         log.info(batch_zero.format(time.time()-start_time))

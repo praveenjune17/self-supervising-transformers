@@ -11,3 +11,29 @@
 Papers refered:-
 	En_tam Machine translation paper:-  http://www.iitp.ac.in/~sukanta.pcs15/pubs/WAT_2018_paper_12.pdf 
 	Base paper :- https://arxiv.org/pdf/1902.09243v2.pdf
+
+Datasets:-
+
+a) _CITATION['MTPIL'] = """
+  @inproceedings {biblio:RaBoMorphologicalProcessing2012,
+  title = {Morphological Processing for English-Tamil Statistical Machine Translation},
+  author = {Loganathan Ramasamy and Ond{\v{r}}ej Bojar and Zden{\v{e}}k {\v{Z}}abokrtsk{\'{y}}},
+  year = {2012},
+  pages = {113--122},
+  Booktitle = {Proceedings of the Workshop on Machine Translation and Parsing in Indian Languages ({MTPIL}-2012)},
+}"""
+b) _CITATION['opus'] = """
+    @InProceedings{TIEDEMANN12.463,
+    author = {J�rg Tiedemann},
+    title = {Parallel Data, Tools and Interfaces in OPUS},
+    booktitle = {Proceedings of the Eight International Conference on Language Resources and Evaluation (LREC'12)},
+    year = {2012},
+    month = {may},
+    date = {23-25},
+    address = {Istanbul, Turkey},
+    editor = {Nicoletta Calzolari (Conference Chair) and Khalid Choukri and Thierry Declerck and Mehmet Ugur Dogan and Bente Maegaard and Joseph Mariani and Jan Odijk and Stelios Piperidis},
+    publisher = {European Language Resources Association (ELRA)},
+    isbn = {978-2-9517408-7-7},
+    language = {english}
+ }"""
+c) https://github.com/joshua-decoder/indian-parallel-corpora

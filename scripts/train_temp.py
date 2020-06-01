@@ -1,8 +1,5 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import, division, print_function, unicode_literals
-
-import sys
-sys.path.insert(0, 'D:\\Local_run\\models')
 import tensorflow as tf
 tf.keras.backend.clear_session()
 tf.random.set_seed(100)
@@ -13,7 +10,6 @@ from configuration import config, source_tokenizer, target_tokenizer
 from utilities import log
 from model_training_helper import (check_ckpt, eval_step, train_step, batch_run_check, 
                           save_evaluate_monitor)
-
 
 # if a checkpoint exists, restore the latest checkpoint.
 ck_pt_mgr = check_ckpt(config.checkpoint_path)

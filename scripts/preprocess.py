@@ -1,14 +1,8 @@
 # -*- coding: utf-8 -*-
 import tensorflow as tf
-import numpy as np
-import tensorflow_datasets as tfds
-from functools import partial
-from collections import defaultdict
 from configuration import config
-from utilities import log
 
 parallel_calls = config.num_parallel_calls
-
 def tfpad(ids, ids_length, pad=0):
     """
     Pad the list 'l' to have size 'n' using 'padding_element'

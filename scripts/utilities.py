@@ -9,13 +9,13 @@ from configuration import config
 def check_and_create_dir():
 
     for key in config.keys():
-        if key in ['best_ckpt_path', 'initial_weights', 'output_sequence_write_path', 'tensorboard_log']:
-            if key == 'tensorboard_log':
-                try:
-                    shutil.rmtree(config[key])
-                except (FileNotFoundError, OSError) as e:
-                    continue
-                os.makedirs(config[key])
+        if key in ['best_ckpt_path', 'initial_weights', 'output_sequence_write_path']:
+            # if key == 'tensorboard_log':
+            #     try:
+            #         shutil.rmtree(config[key])
+            #     except (FileNotFoundError, OSError) as e:
+            #         continue
+            #     os.makedirs(config[key])
             if not os.path.exists(config[key]):
                 os.makedirs(config[key])
 

@@ -10,7 +10,6 @@ Packages in colab + Additonal packages
 Papers to read:-
 	https://arxiv.org/abs/1904.07418 :- Positional Encoding to Control Output Sequence Length
 	https://arxiv.org/pdf/1905.05475.pdf :- Cross-lingual Transfer of Neural Machine Translation Models without Shared Vocabularies	
-	https://arxiv.org/abs/1911.03829 :- Conditional Masked Language Modeling (C-MLM) distillation BERT
 ####################################################
 Addtional refine mechanism:-
 
@@ -48,8 +47,6 @@ Coding
  c) train with TPU
  d) padding test
 train the model in GCP
-	*) remove tf.py_function in preprocess and metric evaluation
-	*) modify eval metric script to accomodate TF BERT
 *) tf profile optimization
 *) stage wise testing
 *) clean summarize_or_translate repo
@@ -69,12 +66,10 @@ Addtional refine mechanism:-
 		e) self-training
 		f) contrastive predictive coding
 ###################################################
-#) Make validation run in another gpu
 #) automatically suggest tokens per batch based on the available GPU memory
 #) source_text == decode(encode(source_text))
 
 #) functions should be small and should be specific
-#) a script should say what it does
 #) avoid composite switch statements
 #) remove unused python packages
 #) one line space after function name and before return
@@ -95,9 +90,7 @@ Additional enhancements
 	#) Hyper parameter tuning using keras tuner
 		Randomsearch using keras-tuner https://keras-team.github.io/keras-tuner/tutorials/subclass-tuner/
 	#) Support distributed training, 
-		*)remove tf.py_function
 		*)ship the dataset to a bucket
-    #) Tensorflow implementation of BERT score :- request tensorflow community
-    #) Scheduled sampling :- toss a coin and perform teacher forcing if it is a heads else perform autoregressive training 
+    #) Scheduled sampling :- toss a coin and perform teacher forcing if it is a heads else perform teacher_force training 
     #) Avg checkpoints
 	

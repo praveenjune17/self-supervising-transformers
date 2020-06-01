@@ -1,8 +1,6 @@
 # -*- coding: utf-8 -*-
 import tempfile
 import tensorflow as tf
-import numpy as np
-from rouge import Rouge
 from create_model import Model
 from model_utils import create_pretrained_model_mask
 from configuration import config, source_tokenizer, target_tokenizer
@@ -12,7 +10,6 @@ negative_log_liklihood = tf.keras.losses.CategoricalCrossentropy(
                                                       from_logits=True, 
                                                       reduction='none'
                                                       )
-
 class CustomSchedule(tf.keras.optimizers.schedules.LearningRateSchedule):
 
     def __init__(self, d_model, warmup_steps=4000):
