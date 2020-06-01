@@ -90,7 +90,7 @@ for split in ['train', 'validation']:
         shuffle=False
         batch_size = config.validation_batch_size
         num_examples_to_select = config.samples_to_validate
-    records_file_path = os.path.join(tf_records_path, f'{config.tfds_name}_{split}.tfrecords')
+    records_file_path = os.path.join(config.tf_records_path, f'{config.tfds_name}_{split}.tfrecords')
     download_and_encode(records_file_path, source_tokenizer, target_tokenizer, split)
     datasets[split] = preprocess_dataset(record_file_path=records_file_path,
                                          drop_remainder=drop_remainder,

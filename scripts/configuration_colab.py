@@ -44,9 +44,9 @@ training_parms = {
      'display_model_summary' : True,
      'early_stop' : False,
      'enable_jit' : False,                    # disabled for windows automatically
-     'eval_after_steps' : 10000,              # Evaluate after these many training steps
+     'eval_after_steps' : 5000,              # Evaluate after these many training steps
      'gamma' : 0.0,
-     'gradient_accumulation_steps': 18,   
+     'gradient_accumulation_steps': 9,   
      'last_recorded_value':  None,
      'min_train_loss' : 1.0,
      'monitor_metric' : 'perplexity',      # perplexity or bert_f1_score
@@ -55,7 +55,7 @@ training_parms = {
      'samples_to_train' : -1,                  # -1 takes all the samples
      'samples_to_validate' : -1,
      'show_BERT_F1_during_training' : False,   # for performance reasons set this to False 
-     'steps_to_print_training_info': 200,      # print training progress per number of batches specified
+     'steps_to_print_training_info': 100,      # print training progress per number of batches specified
      'tfds_name' : 'en_tam_parallel_text',            #cnn_dailymail,en_tam_parallel_text     # tfds dataset to be used
      'init_tolerance' : 0,
      'tolerance_threshold': 7,          # Stop training after the threshold is reached
@@ -80,12 +80,12 @@ h_parms = {
    'grad_clipnorm':None,
    'l2_norm':0.0,
    'learning_rate': None,              # set None to create decayed learning rate schedule
-   'train_batch_size': 2,
-   'validation_batch_size' : 16
+   'train_batch_size': 4,
+   'validation_batch_size' : 32
    }                                    
 dataset_name = training_parms['tfds_name']
 model = 'bertified_transformer'
-core_path = os.getcwd()
+core_path = "/content/drive/My Drive/"
 path_seperator = '\\' if platform.system() == 'Windows' else '/'
 file_path = {
         'best_ckpt_path' : os.path.join(core_path, f"best_checkpoints{path_seperator}{dataset_name+'_'+model}{path_seperator}"),  
