@@ -28,8 +28,6 @@ def tf_padtf_encoded_ids(input_ids, target_ids,
                                           ), lambda: target_ids[0:(output_seq_len+1 - 2)], 
                                              lambda: target_ids
                             )
-    #input_ids = input_ids[0:(input_seq_len - 2)]
-    #target_ids = target_ids[0:(output_seq_len+1 - 2)]
     input_ids = tfpad(input_ids, input_seq_len)
     target_ids = tfpad(target_ids, output_seq_len+1)
 

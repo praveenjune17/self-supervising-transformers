@@ -20,7 +20,6 @@ from __future__ import division
 from __future__ import print_function
 
 import math
-import psutil
 import numpy as np
 
 from tensor2tensor.layers import common_layers
@@ -767,9 +766,8 @@ def beam_search(symbols_to_logits_fn,
            finished_flags.get_shape(),
            state_struc,
            attention_weights_shape          
-       ],
-       parallel_iterations=psutil.cpu_count(),
-       back_prop=False))
+       ]
+       ))
 
   alive_seq.set_shape((None, beam_size, None))
   finished_seq.set_shape((None, beam_size, None))

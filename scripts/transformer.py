@@ -273,5 +273,5 @@ class Decoder(tf.keras.layers.Layer):
                                             seq_len, 
                                             training
                                             )      if self.pointer_generator  else predictions
-        #print(f'block2_attention_weights {tf.shape(block2_attention_weights)}')
+
         return predictions, block2_attention_weights

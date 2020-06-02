@@ -17,7 +17,7 @@ def dict_to_example(dictionary):
         features[k] = tf.train.Feature(int64_list=tf.train.Int64List(value=v))
     return tf.train.Example(features=tf.train.Features(feature=features))
 
-def download_and_encode(source_tokenizer, target_tokenizer, split, 
+def download_and_preprocess(source_tokenizer, target_tokenizer, split, 
                         drop_remainder, shuffle, batch_size,
                         num_examples_to_select):
     
@@ -86,7 +86,7 @@ def download_and_encode(source_tokenizer, target_tokenizer, split,
     
     return dataset
 
-train_dataset = download_and_encode(source_tokenizer, 
+train_dataset = download_and_preprocess(source_tokenizer, 
                                     target_tokenizer, 
                                     'train',
                                     drop_remainder=False,
@@ -94,7 +94,7 @@ train_dataset = download_and_encode(source_tokenizer,
                                     batch_size = config.train_batch_size,
                                     num_examples_to_select = config.samples_to_train
                                     )
-val_dataset = download_and_encode(source_tokenizer, 
+val_dataset = download_and_preprocess(source_tokenizer, 
                                     target_tokenizer, 
                                     'validation',
                                     drop_remainder=True,

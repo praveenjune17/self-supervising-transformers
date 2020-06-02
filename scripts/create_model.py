@@ -26,10 +26,7 @@ def _embedding_from_bert():
     return (decoder_embedding, input_pretrained_bert, target_pretrained_bert)
 
 class Bertified_transformer(tf.keras.Model):
-    """
-    Pretraining-Based Natural Language Generation for Text Summarization 
-    https://arxiv.org/pdf/1902.09243.pdf
-    """
+
     def __init__(
                   self, 
                   num_layers, 
@@ -114,7 +111,7 @@ class Bertified_transformer(tf.keras.Model):
         add_cls_logits = tf.tile(tf.one_hot([config.CLS_ID], one_hot_by)[tf.newaxis,:,:], 
                                             [batch_size, 1, 1])
         # (batch_size x (tar_seq_len - 1), tar_seq_len - 1, *)
-        refined_op   = refined_op[:, 1:, :]
+        refined_op = refined_op[:, 1:, :]
         # (batch_size x (tar_seq_len - 1), *)
         refined_op = tf.gather_nd(refined_op, indices=tf.where(mark_masked_indices))
         # (batch_size, tar_seq_len - 1, *)
@@ -160,11 +157,12 @@ class Bertified_transformer(tf.keras.Model):
                                                   batch_size,
                                                   max_time_steps
                                                   )
-        refine_attention_dist = self._refine_post_process(refine_attention_dist, 
-                                                          mark_masked_indices,
-                                                          batch_size, 
-                                                          max_time_steps
-                                                          )
+        refine_attention_dist = None
+        # refine_attention_dist = self._refine_post_process(refine_attention_dist, 
+        #                                                   mark_masked_indices,
+        #                                                   batch_size, 
+        #                                                   max_time_steps
+        #                                                   )
 
         return refine_logits, refine_attention_dist
 

@@ -2,5 +2,26 @@ https://arxiv.org/abs/1911.03829
 
 Problem to solve:- In Machine translation or text summarization, there is no explicit signal towards global planning in the training objective, the generation model may incline to focusing on local structure rather than global coherence.  BERT’s looking into the future ability can act as an effective regularization method, capturing subtle long-term dependencies
 
-discussed approach:-
+discussed approach:- refine using BERT distillation
 	X and Y represent the source and the target sentence, respectively. We ﬁrst concatenate them together and randomly mask 15% of the tokens onlyin Y ,thentrainthenetworktomodelthejoint probability
+
+	bidirectional_loss = cc(target, predicted)
+
+	target = masked logits obtained from the above concatenated sequence :- created by BERT 
+	predicted = logits obtained from the current time-step created by the auto-regressive decoder
+
+
+	if 'teacher_output' in sample and sample['teacher_output'] is not None and torch.is_tensor(alpha):
+            teacher_output = sample['teacher_output']
+            net_output_lprobs_t = F.log_softmax(net_output / self.t, -1)
+            net_output_lprobs_t = net_output_lprobs_t.view(-1, net_output_lprobs_t.shape[-1])
+
+            topk_idx, topk_prob = teacher_output
+            topk_idx = topk_idx.view(-1, topk_idx.shape[-1])
+            topk_prob = topk_prob.view(-1, topk_prob.shape[-1])
+
+            topk_prob = F.softmax(topk_prob / self.t, -1)
+
+            distill_loss = - (net_output_lprobs_t.gather(dim=-1, index=topk_idx) * topk_prob).sum(dim=-1,
+                                                                                                  keepdim=True)
+            distill_loss = (distill_loss[non_pad_mask] * alpha).sum()
