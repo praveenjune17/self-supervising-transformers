@@ -1,182 +1,98 @@
 # -*- coding: utf-8 -*-
+import sys
+sys.path.insert(0, 'D:\\Local_run\\models')
 import tensorflow as tf
 tf.random.set_seed(100)
 import time
 import os
 import numpy as np
-from transformer import create_masks
-from configuration import config
-from create_model import Model, tokenizer
-from beam_search import beam_search
-from preprocess import infer_data_from_df
-from calculate_metrics import convert_wordpiece_to_words
+from official.nlp.transformer import compute_bleu
+from configuration import config, source_tokenizer, target_tokenizer
+from utilities import log
 from rouge import Rouge
-from bert_score import score as b_score
 
-rouge_all = Rouge()
-infer_template = '''Beam size <--- {}\
-                    ROUGE-f1  <--- {}\
-                    BERT-f1   <--- {}'''
+class evaluation_metrics:
 
-def with_column(x, i, column):
-    """
-    Given a tensor `x`, change its i-th column with `column`
-    x :: (N, T)
-    return :: (N, T)
-    """
+    def __init__(self, true_output_sequences, predicted_output_sequences, task=config.task):
+        self.ref_sents = true_output_sequences
+        self.hyp_sents = predicted_output_sequences
+        self.calculate_rouge = Rouge()
+        self.task = task
 
-    N, T = tf.shape(x)[0], tf.shape(x)[1]
-
-    left = x[:, :i]
-    right = x[:, i+1:]
+    def evaluate_rouge(self):
         
-    return tf.concat([left, column, right], axis=1)
+        try:
+            all_rouge_scores = self.calculate_rouge.get_scores(self.ref_sents , self.hyp_sents)
+            avg_rouge_f1 = np.mean([np.mean([rouge_scores['rouge-1']["f"], 
+                              rouge_scores['rouge-2']["f"], 
+                              rouge_scores['rouge-l']["f"]]) for rouge_scores in all_rouge_scores])
+        except:
+            log.warning('Some problem while calculating ROUGE so setting it to zero')
+            avg_rouge_f1 = 0
 
-def mask_timestamp(x, i, mask_with):
-    """
-    Masks each word in the summary draft one by one with the [MASK] token
-    At t-th time step the t-th word of input summary is
-    masked, and the decoder predicts the refined word given other
-    words of the summary.
-    
-    x :: (N, T)
-    return :: (N, T)
-    """
+        return avg_rouge_f1
 
-    N, T = tf.shape(x)[0], tf.shape(x)[1]
-
-    left = x[:, :i]
-    right = x[:, i+1:]
-    
-    mask = tf.ones([N, 1], dtype=x.dtype) * mask_with
-    
-    masked = tf.concat([left, mask, right], axis=1)
-
-    return masked
-
-def restore_chkpt(checkpoint_path):
-    ckpt = tf.train.Checkpoint(
-                               Model=Model
-                               )
-    assert tf.train.latest_checkpoint(os.path.split(checkpoint_path)[0]), 'Incorrect checkpoint direcotry'
-    ckpt.restore(checkpoint_path).expect_partial()
-    print(f'{checkpoint_path} restored')
-
-#@tf.function
-def draft_decoded_summary(model, input_ids, target_ids, beam_size):
-    batch = tf.shape(input_ids)[0]
-    start = [101] * batch
-    end = [102]
-    # (batch_size, seq_len, d_bert)
-    enc_output_ = model.bert_model(input_ids)[0]
-    enc_output = tf.tile(enc_output_, multiples=[beam_size,1, 1])
-    input_ids = tf.tile(input_ids, multiples=[beam_size, 1])
-    # (batch_size, 1, 1, seq_len), (_), (batch_size, 1, 1, seq_len)
-    def beam_search_decoder(target_ids):
-      _, combined_mask, dec_padding_mask = create_masks(input_ids, target_ids)    
-      draft_logits, _ = model.draft_summary(
-                                            input_ids=input_ids,
-                                            enc_output=enc_output,
-                                            look_ahead_mask=combined_mask,
-                                            padding_mask=dec_padding_mask,
-                                            target_ids=target_ids,
-                                            training=False
-                                          )
-      # (batch_size, 1, target_vocab_size)
-      return (draft_logits[:,-1:,:])
-    return (beam_search(
-                    beam_search_decoder, 
-                    start, 
-                    beam_size, 
-                    config.target_seq_length, 
-                    config.input_vocab_size, 
-                    config.length_penalty, 
-                    stop_early=True, 
-                    eos_id=[end]
-                    ),
-            enc_output_)
-
-def refined_summary_greedy(model, input_ids, enc_output, draft_summary, padding_mask, training=False):
-        """
-        Inference call, builds a refined summary
+    def evaluate_bert_score(self):
         
-        It first masks each word in the summary draft one by one,
-        then feeds the draft to BERT to generate context vectors.
-        """                
-        refined_summary = draft_summary
-        refined_summary_mask = tf.cast(tf.math.equal(draft_summary, 0), tf.float32)
-        refined_summary_segment_ids = tf.zeros(tf.shape(draft_summary))
-                
-        N = tf.shape(draft_summary)[0]            
-        T = tf.shape(draft_summary)[1]
-        
-        dec_outputs, attention_dists = [], []
-        for i in range(1, model.output_seq_len):
+        try:
+            _, _, bert_f1 = b_score(self.ref_sents, self.hyp_sents, 
+                                  model_type=config.bert_score_model,
+                                  device='cpu')
+            avg_bert_f1 = np.mean(bert_f1.numpy())
+        except:
+            log.warning('Some problem while calculating BERT score so setting it to zero')
+            avg_bert_f1 = 0
             
-            # (batch_size, seq_len)
-            refined_summary_ = mask_timestamp(refined_summary, i, config.MASK_ID)
-            
-            # (batch_size, seq_len, d_bert)
-            context_vectors = model.bert_model(refined_summary_)[0]
-            
-            # (batch_size, seq_len, vocab_len), (_)
-            dec_output, attention_dist = model.decoder(
-                                                        input_ids,
-                                                        context_vectors,
-                                                        enc_output,
-                                                        training=training,
-                                                        look_ahead_mask=None,
-                                                        padding_mask=padding_mask
-                                                      )
-            
-            # (batch_size, 1, vocab_len)
-            dec_output_i = dec_output[:, i:i+1 ,:]
-            dec_outputs += [dec_output_i]
-            # (batch_size, 1) 
-            preds = tf.cast(tf.argmax(dec_output_i, axis=-1), tf.int32)
+        return avg_bert_f1
 
-            if tf.squeeze(preds, axis=0) == 102:
-              refined_summary = with_column(refined_summary, i, preds)
-              return refined_summary, attention_dist       
-            
-            # (batch_size, seq_len)
-            refined_summary = with_column(refined_summary, i, preds)
-        # (batch_size, seq_len), (_)        
-        return refined_summary, attention_dist
+    def evaluate_bleu_score(self, case_sensitive=False):
 
-def run_inference(model, dataset, beam_sizes_to_try=config.beam_sizes):
-    for beam_size in beam_sizes_to_try:
-      ref_sents = []
-      hyp_sents = []
-      for (doc_id, (input_ids, _, _, target_ids, _, _)) in enumerate(dataset, 1):
-        start_time = time.time()
-        # translated_output_temp[0] (batch, beam_size, summ_length+1)
-        translated_output_temp, enc_output = draft_decoded_summary(model, input_ids, target_ids[:, :-1], beam_size)
-        draft_predictions = translated_output_temp[0][:,0,:]
-        _, _, dec_padding_mask = create_masks(input_ids, target_ids[:, :-1])
-        refined_summary, attention_dists = refined_summary_greedy(model, input_ids, enc_output, draft_predictions, dec_padding_mask, training=False)
-        sum_ref = tokenizer.convert_ids_to_tokens([i for i in tf.squeeze(target_ids) if i not in [0, 101, 102]])
-        sum_hyp = tokenizer.convert_ids_to_tokens([i for i in tf.squeeze(refined_summary) if i not in [0, 101, 102]])
-        sum_ref = convert_wordpiece_to_words(sum_ref)
-        sum_hyp = convert_wordpiece_to_words(sum_hyp)
-        print('Original summary: {}'.format(sum_ref))
-        print('Predicted summary: {}'.format(sum_hyp))
-        if sum_ref and sum_hyp:
-          ref_sents.append(sum_ref)
-          hyp_sents.append(sum_hyp)
-      try:
-        rouges = rouge_all.get_scores(ref_sents , hyp_sents)
-        avg_rouge_f1 = np.mean([np.mean([rouge_scores['rouge-1']["f"], rouge_scores['rouge-2']["f"], rouge_scores['rouge-l']["f"]]) for rouge_scores in rouges])
-        _, _, bert_f1 = b_score(ref_sents, hyp_sents, lang='en', model_type=config.pretrained_bert_model)
-        avg_bert_f1 = np.mean(bert_f1.numpy())
-      except:
-        avg_rouge_f1 = 0
-        avg_bert_f1 = 0
-      print(infer_template.format(beam_size, avg_rouge_f1, avg_bert_f1))
-      print(f'time to process document {doc_id} : {time.time()-start_time}') 
+        ref_filename = tempfile.NamedTemporaryFile(delete=False)
+        hyp_filename = tempfile.NamedTemporaryFile(delete=False)
+
+        with tf.io.gfile.GFile(ref_filename.name, 'w') as f_ref:
+            with tf.io.gfile.GFile(hyp_filename.name, 'w') as f_hyp:
+                for references, hypothesis_output in zip(self.ref_sents , self.hyp_sents):
+                    f_hyp.write(hypothesis_output+'\n')
+                    f_ref.write(references+'\n')
+        try:
+            bleu_score = compute_bleu.bleu_wrapper(ref_filename = ref_filename.name, 
+                                                   hyp_filename = hyp_filename.name,
+                                                   case_sensitive = False)
+        except:
+            log.warning('Some problem while calculating BLEU score so setting it to zero')
+            bleu_score = 0
+
+        return bleu_score
+
+    def evaluate_task_score(self):
+
+        return self.evaluate_bleu_score() if self.task=='translate' else self.evaluate_rouge()
+
+def write_output_sequence(input_ids, true_target_ids, predictions, filename='decoded_file', write_output_seq=True):
+
+    ref_sents = []
+    hyp_sents = []
+    inp_sents = []
+    for input_id, true_target_id, predicted_hyp in zip(input_ids, true_target_ids, predictions):
+        detokenized_refs = target_tokenizer.decode(tf.squeeze(true_target_id), skip_special_tokens=True)
+        detokenized_hyp_sents = target_tokenizer.decode(tf.squeeze(predicted_hyp), skip_special_tokens=True)
+        detokenized_input_sequence = source_tokenizer.decode(tf.squeeze(input_id), skip_special_tokens=True)
+        ref_sents.append(detokenized_refs)
+        hyp_sents.append(detokenized_hyp_sents)
+        inp_sents.append(detokenized_input_sequence)
+    evaluate = evaluation_metrics(ref_sents, hyp_sents)
+    task_score = evaluate.evaluate_task_score()
+    bert_f1  = evaluate.evaluate_bert_score()
+    if write_output_seq:
+        with tf.io.gfile.GFile(config.output_sequence_write_path+str(step.numpy().decode('utf-8')), 'a') as f:
+            for source, ref, hyp in zip(inp_sents, ref_sents, hyp_sents):
+                f.write(source+'\t'+ref+'\t'+hyp+'\n')
+
+    return (task_score, bert_f1)
 
 if __name__ == '__main__':
   #Restore the model's checkpoints
   restore_chkpt(config.infer_ckpt_path)
   infer_dataset = infer_data_from_df()
-  run_inference(Model, infer_dataset)
+  write_output_sequence(input_ids, true_target_ids, predictions)

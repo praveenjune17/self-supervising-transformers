@@ -2,5 +2,5 @@ https://arxiv.org/abs/1911.03829
 
 Problem to solve:- In Machine translation or text summarization, there is no explicit signal towards global planning in the training objective, the generation model may incline to focusing on local structure rather than global coherence.  BERT’s looking into the future ability can act as an effective regularization method, capturing subtle long-term dependencies
 
-solution:-
+discussed approach:-
 	X and Y represent the source and the target sentence, respectively. We ﬁrst concatenate them together and randomly mask 15% of the tokens onlyin Y ,thentrainthenetworktomodelthejoint probability

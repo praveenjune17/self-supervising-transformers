@@ -22,7 +22,7 @@ def download_and_encode(source_tokenizer, target_tokenizer, split,
                         num_examples_to_select):
     
     records_file_path = os.path.join(config.tf_records_path, f'{config.tfds_name}_{split}.tfrecords')
-    if not os.path.exists(record_file_path):
+    if not os.path.exists(records_file_path):
         if config.tfds_name == 'en_tam_parallel_text':
             en_tam_ds = defaultdict(list)
             record_count=0
@@ -64,7 +64,7 @@ def download_and_encode(source_tokenizer, target_tokenizer, split,
                                  split=tfds.core.ReadInstruction(split, from_=from_, to=to, unit='%')
                                 )
             record_count = (sum([i.num_examples for i in  list(ds_info.splits.values())]))
-        with tf.io.TFRecordWriter(record_file_path) as writer:
+        with tf.io.TFRecordWriter(records_file_path) as writer:
             for (input_line, target_line) in (downloaded_tfd):
                 input_line, target_line = input_line.numpy().decode('utf-8'), target_line.numpy().decode('utf-8')
                 example = dict_to_example(
@@ -82,7 +82,7 @@ def download_and_encode(source_tokenizer, target_tokenizer, split,
                                  shuffle=shuffle,
                                  batch_size=batch_size,
                                  num_examples_to_select=num_examples_to_select)
-    log.info(split, 'dataset created')
+    log.info(f'{split} dataset created')
     
     return dataset
 
