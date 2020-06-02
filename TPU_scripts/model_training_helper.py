@@ -9,8 +9,8 @@ from model_utils import create_masks
 from training_house_keeping import monitor_eval_metrics, training_results, train_sanity_check
 from calculate_metrics import (loss_function, calculate_bert_f1, get_optimizer, mask_and_calculate_nll_loss)
 
-policy = mixed_precision.Policy('mixed_float16')
-mixed_precision.set_policy(policy)
+#policy = mixed_precision.Policy('mixed_float16')
+#mixed_precision.set_policy(policy)
 tf.config.optimizer.set_jit(config.enable_jit)
 
 (train_output_sequence_writer, _, _) = create_tensorboard_parms()
@@ -18,7 +18,7 @@ optimizer = get_optimizer()
 train_loss = tf.keras.metrics.Mean(name='Train_Loss')
 avg_bert_score = tf.keras.metrics.Mean(name='bert_f1_mean')
 avg_perplexity = tf.keras.metrics.Mean(name='perplexity')
-optimizer = mixed_precision.LossScaleOptimizer(optimizer, loss_scale='dynamic')
+#optimizer = mixed_precision.LossScaleOptimizer(optimizer, loss_scale='dynamic')
 batch_zero = 'Time taken to feed the input data to the model {} seconds'
 batch_run_details = 'Train_Loss {:.4f} BERT_f1_score {:.4f}' if config.show_BERT_F1_during_training else 'Train_Loss {:.4f}'
 gradient_accumulators = []

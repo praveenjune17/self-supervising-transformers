@@ -3,7 +3,7 @@ import tempfile
 import tensorflow as tf
 from create_model import Model
 from model_utils import create_pretrained_model_mask
-from configuration import config, source_tokenizer, target_tokenizer
+from configuration import config
 from utilities import log
 
 negative_log_liklihood = tf.keras.losses.CategoricalCrossentropy(
