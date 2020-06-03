@@ -28,13 +28,12 @@ from .modeling_tf_utils import TFPreTrainedModel, get_initializer, shape_list
 
 logger = logging.getLogger(__name__)
 
-TF_ROBERTA_PRETRAINED_MODEL_ARCHIVE_LIST = [
-    "roberta-base",
-    "roberta-large",
-    "roberta-large-mnli",
-    "distilroberta-base",
-    # See all RoBERTa models at https://huggingface.co/models?filter=roberta
-]
+TF_ROBERTA_PRETRAINED_MODEL_ARCHIVE_MAP = {
+    "roberta-base": "https://cdn.huggingface.co/roberta-base-tf_model.h5",
+    "roberta-large": "https://cdn.huggingface.co/roberta-large-tf_model.h5",
+    "roberta-large-mnli": "https://cdn.huggingface.co/roberta-large-mnli-tf_model.h5",
+    "distilroberta-base": "https://cdn.huggingface.co/distilroberta-base-tf_model.h5",
+}
 
 
 class TFRobertaEmbeddings(TFBertEmbeddings):
@@ -44,6 +43,7 @@ class TFRobertaEmbeddings(TFBertEmbeddings):
 
     def __init__(self, config, **kwargs):
         super().__init__(config, **kwargs)
+        self.padding_idx = 1
 
     def create_position_ids_from_input_ids(self, x):
         """ Replace non-padding symbols with their position numbers. Position numbers begin at
@@ -64,7 +64,7 @@ class TFRobertaEmbeddings(TFBertEmbeddings):
         """
         seq_length = shape_list(inputs_embeds)[1]
 
-        position_ids = tf.range(1 + 1, seq_length + 1 + 1, dtype=tf.int32)[tf.newaxis, :]
+        position_ids = tf.range(self.padding_idx + 1, seq_length + self.padding_idx + 1, dtype=tf.int32)[tf.newaxis, :]
         return position_ids
 
     def _embedding(self, inputs, training=False):
@@ -100,6 +100,7 @@ class TFRobertaPreTrainedModel(TFPreTrainedModel):
     """
 
     config_class = RobertaConfig
+    pretrained_model_archive_map = TF_ROBERTA_PRETRAINED_MODEL_ARCHIVE_MAP
     base_model_prefix = "roberta"
 
 
