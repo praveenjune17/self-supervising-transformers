@@ -4,8 +4,6 @@ import six
 from utilities import log
 from configuration import config
 
-parallel_calls = config.num_parallel_calls
-
 def preprocess(split, batch_size):
     
     def _parse_example(serialized_example):
@@ -25,9 +23,9 @@ def preprocess(split, batch_size):
                               tf.math.count_nonzero(y) <= config.target_seq_length
                              )
     def tfpad(ids, ids_length, pad=0):
-    """
-    Pad the list 'l' to have size 'n' using 'padding_element'
-    """
+        """
+        Pad the list 'l' to have size 'n' using 'padding_element'
+        """
         pad_len = tf.maximum(0, ids_length - tf.shape(ids)[-1])
         pad_with = tf.reshape(tf.concat([[0], [1]], axis=0)*pad_len, (1,2))
 
@@ -56,14 +54,14 @@ def preprocess(split, batch_size):
 
     record_file_path = os.path.join(config.tf_records_path, f'{config.tfds_name}_{split}.tfrecords')
     tf_dataset = tf.data.TFRecordDataset(record_file_path)
-    tf_dataset = tf_dataset.map(_parse_example, num_parallel_calls=parallel_calls)
+    tf_dataset = tf_dataset.map(_parse_example, num_parallel_calls=-1)
     tf_dataset = tf_dataset.filter(filter_max_length)
     tf_dataset = tf_dataset.map(tf_padtf_encoded_ids)
     tf_dataset = tf_dataset.cache()
     tf_dataset = tf_dataset.padded_batch(batch_size, 
                             padded_shapes=([-1], [-1]), 
                             drop_remainder=True)
-    tf_dataset = tf_dataset.prefetch(buffer_size=parallel_calls)
+    tf_dataset = tf_dataset.prefetch(buffer_size=-1)
     
     return tf_dataset
 
