@@ -9,17 +9,17 @@ from model_utils import (tile_and_mask_diagonal, create_masks, topp_topk,
 
 def _embedding_from_bert():
 
-    with tf.device("CPU:0"):  
-        input_pretrained_bert = TFAutoModel.from_pretrained(
-                                              config.input_pretrained_model, 
-                                              trainable=False, 
-                                              name=config.input_pretrained_model
-                                              )
-        target_pretrained_bert = TFAutoModel.from_pretrained(
-                                    config.target_pretrained_model, 
-                                    trainable=False, 
-                                    name=config.target_pretrained_model
-                                    ) if config['task'] == 'translate' else input_pretrained_bert
+    #with tf.device("CPU:0"):  
+    input_pretrained_bert = TFAutoModel.from_pretrained(
+                                          config.input_pretrained_model, 
+                                          trainable=False, 
+                                          name=config.input_pretrained_model
+                                          )
+    target_pretrained_bert = TFAutoModel.from_pretrained(
+                                config.target_pretrained_model, 
+                                trainable=False, 
+                                name=config.target_pretrained_model
+                                ) if config['task'] == 'translate' else input_pretrained_bert
     decoder_embedding = target_pretrained_bert.get_weights()[0]
     log.info(f"Decoder_Embedding matrix shape '{decoder_embedding.shape}'")
 
