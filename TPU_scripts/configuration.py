@@ -27,7 +27,7 @@ model_parms = {
      'add_pointer_generator': True,
      'd_model': 768,                  # the projected word vector dimension
      'dff': 1024,                      # feed forward network hidden parameters
-     'input_pretrained_model': 'distilroberta-base',  #distilroberta-base, #bert-base-uncased , #google/electra-small-discriminator
+     'input_pretrained_model': 'bert-base-uncased',  #distilroberta-base, #bert-base-uncased , #google/electra-small-discriminator
      'input_seq_length': 81,
      'num_heads': 8,                  # the number of heads in the multi-headed attention unit
      'num_layers': 8,                 # number of transformer blocks
