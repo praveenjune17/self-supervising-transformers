@@ -108,7 +108,7 @@ class Bertified_transformer(tf.keras.Model):
         #                                   ), lambda: self.target_vocab_size, 
         #                                      lambda: third_axis_len
         #                     )
-        add_cls_logits = tf.tile(tf.one_hot([config.CLS_ID], 119547)[tf.newaxis,:,:], 
+        add_cls_logits = tf.tile(tf.one_hot([config.CLS_ID], self.target_vocab_size)[tf.newaxis,:,:], 
                                             [batch_size, 1, 1])
         # (batch_size x (tar_seq_len - 1), tar_seq_len - 1, *)
         refined_op = refined_op[:, 1:, :]
