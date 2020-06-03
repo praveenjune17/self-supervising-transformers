@@ -297,6 +297,8 @@ class Decoder(tf.keras.layers.Layer):
 
         seq_len = tf.shape(target_ids)[1]
         attention_weights = {}
+        target_ids = self.decoder_embedding(target_ids)
+
         # (batch_size, target_seq_len, d_model) 
         target_ids *= tf.math.sqrt(tf.cast(self.d_model, tf.float32))
         target_ids += self.pos_encoding[:, :seq_len, :]
@@ -350,14 +352,14 @@ class Transformer(tf.keras.Model):
         # (batch_size, tar_seq_len, target_vocab_size), ()
         final_output, attention_weights = self.decoder(
                                                     input_ids,
-                                                    target_ids, 
+                                                    target_ids[:, :-1], 
                                                     enc_output, 
                                                     training, 
                                                     look_ahead_mask, 
                                                     dec_padding_mask
                                                     )
         
-        return (final_output, attention_weights, None, None, None, None)    
+        return (final_output, None, attention_weights, None, None, None)    
 
     def predict(self,
            input_ids,
