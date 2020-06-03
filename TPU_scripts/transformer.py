@@ -279,7 +279,7 @@ class Decoder(tf.keras.layers.Layer):
 
         self.d_model = d_model
         self.num_layers = num_layers
-        self.decoder_embedding = tf.keras.layers.Embedding(target_vocab_size, d_model)
+        #self.decoder_embedding = tf.keras.layers.Embedding(target_vocab_size, d_model)
         self.pos_encoding = positional_encoding(target_vocab_size, self.d_model)
         self.dec_layers = [DecoderLayer(d_model, num_heads, dff, rate) 
                            for _ in range(num_layers)]
@@ -297,7 +297,7 @@ class Decoder(tf.keras.layers.Layer):
 
         seq_len = tf.shape(target_ids)[1]
         attention_weights = {}
-        target_ids = self.decoder_embedding(target_ids)
+        #target_ids = self.decoder_embedding(target_ids)
 
         # (batch_size, target_seq_len, d_model) 
         target_ids *= tf.math.sqrt(tf.cast(self.d_model, tf.float32))
