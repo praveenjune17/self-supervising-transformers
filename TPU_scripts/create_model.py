@@ -308,7 +308,7 @@ class Bertified_transformer(tf.keras.Model):
         return (predicted_draft_output_sequence, draft_attention_dist, 
                predicted_refined_output_sequence, refined_attention_dist, truncated_refine_logits)
 
-    def call(self, input_ids, target_ids, dec_padding_mask, 
+    def call(self, input_ids, target_ids, encoding_padding_mask, dec_padding_mask, 
                  look_ahead_mask, training,
                  decoder_type=config.draft_decoder_type,
                  beam_size=config.beam_size,

@@ -64,18 +64,3 @@ def preprocess(split, batch_size):
     tf_dataset = tf_dataset.prefetch(buffer_size=-1)
     
     return tf_dataset
-
-# train_dataset = download_and_preprocess(
-#                                     'train',
-#                                     drop_remainder=False,
-#                                     shuffle=True,
-#                                     batch_size = config.train_batch_size,
-#                                     num_examples_to_select = config.samples_to_train
-#                                     )
-# val_dataset = download_and_preprocess( 
-#                                     'validation',
-#                                     drop_remainder=True,
-#                                     shuffle=False,
-#                                     batch_size = config.validation_batch_size,
-#                                     num_examples_to_select = config.samples_to_validate
-#                                     )
