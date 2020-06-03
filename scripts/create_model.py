@@ -102,13 +102,13 @@ class Bertified_transformer(tf.keras.Model):
         # * :- inp_seq_len if attention else tar_vocab_size
 
         third_axis_len = tf.shape(refined_op)[-1]
-        one_hot_by = tf.cond(tf.math.equal(
-                                          third_axis_len,
-                                          self.target_vocab_size
-                                          ), lambda: self.target_vocab_size, 
-                                             lambda: third_axis_len
-                            )
-        add_cls_logits = tf.tile(tf.one_hot([config.CLS_ID], one_hot_by)[tf.newaxis,:,:], 
+        # one_hot_by = tf.cond(tf.math.equal(
+        #                                   third_axis_len,
+        #                                   self.target_vocab_size
+        #                                   ), lambda: self.target_vocab_size, 
+        #                                      lambda: third_axis_len
+        #                     )
+        add_cls_logits = tf.tile(tf.one_hot([config.CLS_ID], 119547)[tf.newaxis,:,:], 
                                             [batch_size, 1, 1])
         # (batch_size x (tar_seq_len - 1), tar_seq_len - 1, *)
         refined_op = refined_op[:, 1:, :]
