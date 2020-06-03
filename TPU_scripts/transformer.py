@@ -108,6 +108,32 @@ def point_wise_feed_forward_network(d_model, dff):
                               )
     ])
 
+class EncoderLayer(tf.keras.layers.Layer):
+    def __init__(self, d_model, num_heads, dff, rate=config.dropout_rate):
+        super(EncoderLayer, self).__init__()
+
+        self.mha = MultiHeadAttention(d_model, num_heads)
+        self.ffn = point_wise_feed_forward_network(d_model, dff)
+        self.layernorm1 = tf.keras.layers.LayerNormalization(epsilon=1e-6)
+        self.layernorm2 = tf.keras.layers.LayerNormalization(epsilon=1e-6)
+        self.dropout1 = tf.keras.layers.Dropout(rate, seed=100)
+        self.dropout2 = tf.keras.layers.Dropout(rate, seed=100)
+      
+    def call(self, input_ids, training, mask):
+        # (batch_size, input_seq_len, d_model)
+        
+        attn_output, _ = self.mha(input_ids, input_ids, input_ids, mask)  
+        attn_output = self.dropout1(attn_output, training=training)
+        # (batch_size, input_seq_len, d_model)
+        layer_norm_out1 = self.layernorm1(input_ids + attn_output)  
+        # (batch_size, input_seq_len, d_model)
+        ffn_output = self.ffn(layer_norm_out1)  
+        ffn_output = self.dropout2(ffn_output, training=training)
+        # (batch_size, input_seq_len, d_model)
+        encoder_output = self.layernorm2(layer_norm_out1 + ffn_output)  
+        
+        return encoder_output
+
 class DecoderLayer(tf.keras.layers.Layer):
     def __init__(self, d_model, num_heads, dff, rate=config.dropout_rate):
         super(DecoderLayer, self).__init__()
