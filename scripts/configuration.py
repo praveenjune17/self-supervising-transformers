@@ -43,10 +43,10 @@ training_parms = {
      'display_model_summary' : True,
      'early_stop' : False,
      'enable_jit' : False,                    # disabled for windows automatically
-     'eval_after_steps' : 10000,              # Evaluate after these many training steps
+     'eval_after_steps' : 20000,              # Evaluate after these many training steps
      'gamma' : 0.0,
-     'gradient_accumulation_steps': 18,   
-     'last_recorded_value':  None,
+     'gradient_accumulation_steps': 36,   
+     'last_recorded_value':  319.76,
      'min_train_loss' : 1.0,
      'monitor_metric' : 'perplexity',      # perplexity or bert_f1_score
      'num_parallel_calls' : -1,
@@ -54,7 +54,7 @@ training_parms = {
      'samples_to_train' : -1,                  # -1 takes all the samples
      'samples_to_validate' : -1,
      'show_BERT_F1_during_training' : False,   # for performance reasons set this to False 
-     'steps_to_print_training_info': 200,      # print training progress per number of batches specified
+     'steps_to_print_training_info': 400,      # print training progress per number of batches specified
      'tfds_name' : 'en_tam_parallel_text',            #cnn_dailymail,en_tam_parallel_text     # tfds dataset to be used
      'init_tolerance' : 0,
      'tolerance_threshold': 7,          # Stop training after the threshold is reached
@@ -79,7 +79,7 @@ h_parms = {
    'grad_clipnorm':None,
    'l2_norm':0.0,
    'learning_rate': None,              # set None to create decayed learning rate schedule
-   'train_batch_size': 2,
+   'train_batch_size': 1,
    'validation_batch_size' : 16
    }                                    
 dataset_name = training_parms['tfds_name']
@@ -88,7 +88,7 @@ core_path = os.getcwd()
 path_seperator = '\\' if platform.system() == 'Windows' else '/'
 file_path = {
         'best_ckpt_path' : os.path.join(core_path, f"best_checkpoints{path_seperator}{dataset_name+'_'+model}{path_seperator}"),  
-        'checkpoint_path' : os.path.join(core_path, f"checkpoints{path_seperator}{dataset_name+'_'+model}{path_seperator}"),
+        'checkpoint_path' : os.path.join(core_path, f"checkpoints{path_seperator}{dataset_name+'_'+model}{path_seperator}\\temp"),
         'initial_weights' : os.path.join(core_path, f"initial_weights{path_seperator}{dataset_name+'_'+model}{path_seperator}"),
         'infer_csv_path' : None,
         'infer_ckpt_path' : 'D:\\Local_run\\checkpoints\\en_tam_parallel_text_bertified_transformer\\ckpt-301',
