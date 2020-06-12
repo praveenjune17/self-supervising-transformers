@@ -32,7 +32,7 @@ train_step_signature = [
 val_step_signature = [
                       tf.TensorSpec(shape=(None, None), dtype=tf.int64),
                       tf.TensorSpec(shape=(None, None), dtype=tf.int64),
-                      tf.TensorSpec(shape=(None), dtype=tf.string)
+                      #tf.TensorSpec(shape=(None), dtype=tf.string)
                      ]
 
 @tf.function(input_signature=train_step_signature, experimental_compile=config.enable_jit)
@@ -111,6 +111,8 @@ def val_step(
                            look_ahead_mask=None, 
                            training=None
                            )
+    # print(f'target_ids {tf.shape(target_ids)}')
+    # print(f'refine_logits {tf.shape(refine_logits)}')
     refine_validation_loss, _ = mask_and_calculate_nll_loss(refine_logits,
                                                             target_ids,
                                                             config.PAD_ID,
@@ -226,7 +228,8 @@ def save_evaluate_monitor(ck_pt_mgr, val_dataset,
     train_sanity_check(target_tokenizer, predictions, target_ids, log)
     # Run evaluation only if the train_loss is lesser than validate_when_train_loss_is
     if train_loss.result() < config.validate_when_train_loss_is:
-        (validation_perplexity,val_bert_score, 
+        (validation_perplexity,
+         val_bert_score, 
          draft_attention_weights,
          refine_attention_weights) = evaluate_validation_set(       
                                                       val_dataset

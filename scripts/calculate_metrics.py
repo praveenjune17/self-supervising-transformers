@@ -110,7 +110,8 @@ def calculate_policy_gradient_loss(
     #(2,), (2,)
     sample_bert_f1, greedy_baseline_bert_f1 = tf.split(bert_f1_score, num_or_size_splits=2, axis=0)
     #(2,)
-    pg_loss_with_baseline = (sample_bert_f1 - greedy_baseline_bert_f1)*sample_return_nll_loss
+    #pg_loss_with_baseline = (sample_bert_f1 - greedy_baseline_bert_f1)*sample_return_nll_loss
+    pg_loss_with_baseline = (greedy_baseline_bert_f1 - sample_bert_f1)*sample_return_nll_loss
     #(2,)
     loss_with_pg = (1-gamma)*nll_loss + (gamma * pg_loss_with_baseline)
     loss_with_pg = tf.reduce_sum(loss_with_pg)

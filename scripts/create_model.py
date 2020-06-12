@@ -181,7 +181,7 @@ class Bertified_transformer(tf.keras.Model):
         then feeds the draft to the pre-trained model to generate context vectors.
         """
         dec_input = draft_output_sequence
-        for i in (range(1, config.target_seq_length)):
+        for i in (range(1, config.target_seq_length+1)):
             # (batch_size, seq_len)
             dec_input = mask_timestamp(dec_input, i, config.MASK_ID)
             _, _, dec_padding_mask = create_masks(input_ids, dec_input)
@@ -219,7 +219,7 @@ class Bertified_transformer(tf.keras.Model):
         # (2*batch_size*tar_seq_len, target_vocab_size)
         reshaped_logits = tf.reshape(logits, (-1, config.target_vocab_size))
         # (2*batch_size*tar_seq_len, 1)
-        select_samples = tf.random.categorical(reshaped_logits, 1, seed=1, dtype=tf.int64)
+        select_samples = tf.stop_gradient(tf.random.categorical(reshaped_logits, 1, seed=1, dtype=tf.int64))
         # (2*batch_size, cand_seq_len)
         sample_returns = tf.reshape(select_samples, (batch_size, -1))
         # (2*batch_size, tar_seq_len)

@@ -63,10 +63,11 @@ def preprocess_dataset(
     tf_dataset = tf_dataset.map(_parse_example, num_parallel_calls=-1)
     tf_dataset = tf_dataset.filter(filter_max_length)
     tf_dataset = tf_dataset.map(tf_padtf_encoded_ids) 
-    tf_dataset = tf_dataset.take(num_examples_to_select) 
-    tf_dataset = tf_dataset.cache()
     if shuffle:
         tf_dataset = tf_dataset.shuffle(1000000, seed=100)
+    #tf_dataset = tf_dataset.take(num_examples_to_select) 
+    tf_dataset = tf_dataset.take(49214+45000+7200+12240+7200+7200)
+    tf_dataset = tf_dataset.cache()
     tf_dataset = tf_dataset.padded_batch(batch_size, 
                             padded_shapes=([-1], [-1]), 
                             drop_remainder=drop_remainder)

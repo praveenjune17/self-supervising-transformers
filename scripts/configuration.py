@@ -43,18 +43,18 @@ training_parms = {
      'display_model_summary' : True,
      'early_stop' : False,
      'enable_jit' : False,                    # disabled for windows automatically
-     'eval_after_steps' : 20000,              # Evaluate after these many training steps
-     'gamma' : 0.0,
-     'gradient_accumulation_steps': 36,   
-     'last_recorded_value':  319.76,
+     'eval_after_steps' : 800,              # Evaluate after these many training steps
+     'gamma' : 0.9984,
+     'gradient_accumulation_steps': 18,   
+     'last_recorded_value':  0.68,          #319.76
      'min_train_loss' : 1.0,
-     'monitor_metric' : 'perplexity',      # perplexity or bert_f1_score
+     'monitor_metric' : 'bert_f1_score',      # perplexity or bert_f1_score
      'num_parallel_calls' : -1,
      'run_tensorboard': True,
      'samples_to_train' : -1,                  # -1 takes all the samples
      'samples_to_validate' : -1,
-     'show_BERT_F1_during_training' : False,   # for performance reasons set this to False 
-     'steps_to_print_training_info': 400,      # print training progress per number of batches specified
+     'show_BERT_F1_during_training' : True,   # for performance reasons set this to False 
+     'steps_to_print_training_info': 80,      # print training progress per number of batches specified
      'tfds_name' : 'en_tam_parallel_text',            #cnn_dailymail,en_tam_parallel_text     # tfds dataset to be used
      'init_tolerance' : 0,
      'tolerance_threshold': 7,          # Stop training after the threshold is reached
@@ -74,12 +74,12 @@ inference_decoder_parms = {
     }
 h_parms = {
    'dropout_rate': 0.1,
-   'epochs': 4,
+   'epochs': 1,
    'epsilon_ls': 0.1,                  # label_smoothing hyper parameter
    'grad_clipnorm':None,
    'l2_norm':0.0,
    'learning_rate': None,              # set None to create decayed learning rate schedule
-   'train_batch_size': 1,
+   'train_batch_size': 2,
    'validation_batch_size' : 16
    }                                    
 dataset_name = training_parms['tfds_name']
