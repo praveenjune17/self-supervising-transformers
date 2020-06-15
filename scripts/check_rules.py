@@ -109,7 +109,7 @@ def assert_config_values(config):
     assert config.eval_after_steps % config.steps_to_print_training_info == 0, (
     'For printing the training results without any issues "eval_after_steps"\
      must be a multiple of steps_to_print_training_info')
-    assert config.steps_to_print_training_info > config.gradient_accumulation_steps, (
+    assert config.steps_to_print_training_info >= config.gradient_accumulation_steps, (
     'To prevent undesirable training results please set gradient_accumulation_steps lesser\
     than steps_to_print_training_info')
     assert config.draft_decoder_type  in available_draft_decoder_types, (

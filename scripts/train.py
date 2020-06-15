@@ -15,8 +15,8 @@ from model_training_helper import (check_ckpt, eval_step, train_step, batch_run_
 # if a checkpoint exists, restore the latest checkpoint.
 ck_pt_mgr = check_ckpt(config.checkpoint_path)
 total_steps = int(config.epochs * (config.gradient_accumulation_steps))
-train_dataset = train_dataset.repeat(total_steps)
-train_dataset = train_dataset.skip(63360)
+train_dataset = train_dataset.repeat()
+
 try:
     for (step, (input_ids, target_ids)) in tqdm(enumerate(train_dataset, 1), initial=1):
         start_time = time.time()

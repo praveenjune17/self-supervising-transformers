@@ -28,14 +28,14 @@ model_parms = {
      'd_model': 768,                  # the projected word vector dimension
      'dff': 1024,                      # feed forward network hidden parameters
      'input_pretrained_model': 'distilroberta-base',  #distilroberta-base, #bert-base-uncased , #google/electra-small-discriminator
-     'input_seq_length': 50,
+     'input_seq_length': 40,
      'num_heads': 8,                  # the number of heads in the multi-headed attention unit
      'num_layers': 8,                 # number of transformer blocks
      'target_language' : 'ta',
      'target_pretrained_model' : 'distilbert-base-multilingual-cased',#'bert-base-uncased',
                                                                      #'bert-base-multilingual-cased',
                                                                     #'distilbert-base-multilingual-cased'
-     'target_seq_length': 20,
+     'target_seq_length': 27,
      'task':'translate'            # must be translate or summarize
      }
 training_parms = {
@@ -43,15 +43,15 @@ training_parms = {
      'display_model_summary' : True,
      'early_stop' : False,
      'enable_jit' : False,                    # disabled for windows automatically
-     'eval_after_steps' : 800,              # Evaluate after these many training steps
-     'gamma' : 0.9984,
+     'eval_after_steps' : 3200,              # Evaluate after these many training steps
+     'gamma' : 0.001,
      'gradient_accumulation_steps': 18,   
      'last_recorded_value':  0.68,          #319.76
      'min_train_loss' : 1.0,
      'monitor_metric' : 'bert_f1_score',      # perplexity or bert_f1_score
      'num_parallel_calls' : -1,
      'run_tensorboard': True,
-     'samples_to_train' : -1,                  # -1 takes all the samples
+     'samples_to_train' : 1500,                  # -1 takes all the samples
      'samples_to_validate' : -1,
      'show_BERT_F1_during_training' : True,   # for performance reasons set this to False 
      'steps_to_print_training_info': 80,      # print training progress per number of batches specified
@@ -79,8 +79,8 @@ h_parms = {
    'grad_clipnorm':None,
    'l2_norm':0.0,
    'learning_rate': None,              # set None to create decayed learning rate schedule
-   'train_batch_size': 2,
-   'validation_batch_size' : 16
+   'train_batch_size': 1,
+   'validation_batch_size' : 8
    }                                    
 dataset_name = training_parms['tfds_name']
 model = 'bertified_transformer'
