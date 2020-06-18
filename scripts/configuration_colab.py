@@ -43,10 +43,10 @@ training_parms = {
      'display_model_summary' : True,
      'early_stop' : False,
      'enable_jit' : False,                    # disabled for windows automatically
-     'eval_after_steps' : 5000,              # Evaluate after these many training steps
+     'eval_after_steps' : 3600,              # Evaluate after these many training steps
      'gamma' : 0.0,
      'gradient_accumulation_steps': 9,   
-     'last_recorded_value':  319.76,
+     'last_recorded_value':  320.0,
      'min_train_loss' : 1.0,
      'monitor_metric' : 'perplexity',      # perplexity or bert_f1_score
      'num_parallel_calls' : -1,
@@ -54,7 +54,7 @@ training_parms = {
      'samples_to_train' : -1,                  # -1 takes all the samples
      'samples_to_validate' : -1,
      'show_BERT_F1_during_training' : False,   # for performance reasons set this to False 
-     'steps_to_print_training_info': 100,      # print training progress per number of batches specified
+     'steps_to_print_training_info': 50,      # print training progress per number of batches specified
      'tfds_name' : 'en_tam_parallel_text',            #cnn_dailymail,en_tam_parallel_text     # tfds dataset to be used
      'init_tolerance' : 0,
      'tolerance_threshold': 7,          # Stop training after the threshold is reached
