@@ -15,6 +15,7 @@ from model_training_helper import (check_ckpt, eval_step, train_step, batch_run_
 # if a checkpoint exists, restore the latest checkpoint.
 ck_pt_mgr = check_ckpt(config.checkpoint_path)
 total_steps = int(config.epochs * (config.gradient_accumulation_steps))
+train_dataset = train_dataset.skip(39600)
 train_dataset = train_dataset.repeat()
 
 try:
