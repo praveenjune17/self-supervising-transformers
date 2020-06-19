@@ -43,7 +43,7 @@ training_parms = {
      'display_model_summary' : True,
      'early_stop' : False,
      'enable_jit' : False,                    # disabled for windows automatically
-     'eval_after_steps' : 3600,              # Evaluate after these many training steps
+     'eval_after_steps' : 4800,              # Evaluate after these many training steps
      'gamma' : 0.0,
      'gradient_accumulation_steps': 9,   
      'last_recorded_value':  320.0,
