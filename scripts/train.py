@@ -16,7 +16,7 @@ from model_training_helper import (check_ckpt, eval_step, train_step, batch_run_
 ck_pt_mgr = check_ckpt(config.checkpoint_path)
 total_steps = int(config.epochs * (config.gradient_accumulation_steps))
 train_dataset = train_dataset.repeat()
-#train_dataset = train_dataset.skip(39600+61650+57600+63450+21600+65700)
+train_dataset = train_dataset.skip(63000)
 
 try:
     for (step, (input_ids, target_ids)) in tqdm(enumerate(train_dataset, 1), initial=1):
