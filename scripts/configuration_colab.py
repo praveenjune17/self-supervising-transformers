@@ -43,7 +43,7 @@ training_parms = {
      'display_model_summary' : True,
      'early_stop' : False,
      'enable_jit' : False,                    # disabled for windows automatically
-     'eval_after_steps' : 2400,              # Evaluate after these many training steps
+     'eval_after_steps' : 3200,              # Evaluate after these many training steps
      'gamma' : 0.0,
      'gradient_accumulation_steps': 9,   
      'last_recorded_value':  218.0,
@@ -51,7 +51,7 @@ training_parms = {
      'monitor_metric' : 'perplexity',      # perplexity or bert_f1_score
      'num_parallel_calls' : -1,
      'run_tensorboard': True,
-     'samples_to_train' : 16000,                  # -1 takes all the samples
+     'samples_to_train' : 4000,                  # -1 takes all the samples
      'samples_to_validate' : -1,
      'show_BERT_F1_during_training' : False,   # for performance reasons set this to False 
      'steps_to_print_training_info': 50,      # print training progress per number of batches specified
