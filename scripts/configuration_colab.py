@@ -28,14 +28,14 @@ model_parms = {
      'd_model': 768,                  # the projected word vector dimension
      'dff': 1024,                      # feed forward network hidden parameters
      'input_pretrained_model': 'distilroberta-base',  #distilroberta-base, #bert-base-uncased , #google/electra-small-discriminator
-     'input_seq_length': 50,
+     'input_seq_length': 51,
      'num_heads': 8,                  # the number of heads in the multi-headed attention unit
      'num_layers': 8,                 # number of transformer blocks
      'target_language' : 'ta',
      'target_pretrained_model' : 'distilbert-base-multilingual-cased',#'bert-base-uncased',
                                                                      #'bert-base-multilingual-cased',
                                                                     #'distilbert-base-multilingual-cased'
-     'target_seq_length': 40,
+     'target_seq_length': 50,
      'task':'translate'            # must be translate or summarize
      }
 training_parms = {
