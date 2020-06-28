@@ -11,15 +11,15 @@ from utilities import log
 from model_training_helper import (check_ckpt, eval_step, train_step, batch_run_check, 
                           save_evaluate_monitor)
 
-
+skip = 50400
 # if a checkpoint exists, restore the latest checkpoint.
 ck_pt_mgr = check_ckpt(config.checkpoint_path)
 total_steps = int(config.epochs * (config.gradient_accumulation_steps))
 train_dataset = train_dataset.repeat()
-train_dataset = train_dataset.skip(50400)
+train_dataset = train_dataset.skip(skip)
 
 try:
-    for (step, (input_ids, target_ids)) in tqdm(enumerate(train_dataset, 1), initial=1):
+    for (step, (input_ids, target_ids)) in tqdm(enumerate(train_dataset, 1), initial=skip+1):
         start_time = time.time()
         grad_accum_flag = (True if (step%config.gradient_accumulation_steps) == 0 else False) if config.accumulate_gradients else None
         predictions, bert_f1_score = train_step(
