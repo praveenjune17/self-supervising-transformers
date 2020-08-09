@@ -11,7 +11,7 @@ from utilities import log
 from model_training_helper import (check_ckpt, eval_step, train_step, batch_run_check, 
                           save_evaluate_monitor)
 
-skip = 50400
+skip = 79200
 # if a checkpoint exists, restore the latest checkpoint.
 ck_pt_mgr = check_ckpt(config.checkpoint_path)
 total_steps = int(config.epochs * (config.gradient_accumulation_steps))
