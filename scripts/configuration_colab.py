@@ -46,7 +46,7 @@ training_parms = {
      'eval_after_steps' : 3200,              # Evaluate after these many training steps
      'gamma' : 0.0,
      'gradient_accumulation_steps': 9,   
-     'last_recorded_value':  218.0,
+     'last_recorded_value':  215.0,
      'min_train_loss' : 1.0,
      'monitor_metric' : 'perplexity',      # perplexity or bert_f1_score
      'num_parallel_calls' : -1,
